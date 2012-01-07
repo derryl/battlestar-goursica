@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-#requires python-dateutil==1.5, redis
-#recommends hiredis
+# run pip install -r requirements.txt
 # you'll need to have the redis server running, too ('brew install redis')
 
 from dateutil.parser import parse as dateparse
