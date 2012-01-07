@@ -18,9 +18,9 @@ from time import sleep
 from datetime import datetime
 
 DISPLAY_COUNT = 2
-REPO_STORE = os.path.expanduser('~/.battlestar_goursica/repos/')
 PASSWORD = ''
 REFRESH_RATE = 10 #seconds!
+REPO_STORE = os.path.abspath("repositories")
 
 if not os.path.exists(REPO_STORE):
     os.makedirs(REPO_STORE)
