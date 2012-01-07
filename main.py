@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-#requires python-dateutil, redis
+
+#requires python-dateutil==1.5, redis
 #recommends hiredis
 # you'll need to have the redis server running, too ('brew install redis')
 
