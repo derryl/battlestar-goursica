@@ -5,16 +5,13 @@
 
 from dateutil.parser import parse as dateparse
 from collections import OrderedDict
-from getpass import getpass
 from json import loads
-from pprint import pprint
 from subprocess import Popen, PIPE, check_output
 import base64
 import logging
 import os
 import re
 import redis
-import shlex
 import sys
 import urllib2
 from time import sleep
