@@ -29,9 +29,8 @@ GOURCE_CONFIG = os.path.abspath('.gourceconfig')
 
 # Global settings
 DISPLAY_COUNT = 2
-PASSWORD = ''
-REFRESH_RATE = 10 #seconds!
-REPO_STORE = os.path.abspath("repositories")
+REPO_STORE = os.path.abspath('repositories')
+REFRESH_RATE = 10  # seconds!
 GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
 
 if not os.path.exists(REPO_STORE):
