@@ -24,6 +24,9 @@ ORGANIZATION = BSG_LINES[0].rstrip()
 USERNAME = BSG_LINES[1].rstrip()
 PASSWORD = BSG_LINES[2].rstrip()
 
+# Gource config
+GOURCE_CONFIG = os.path.abspath('.gourceconfig')
+
 # Global settings
 DISPLAY_COUNT = 2
 PASSWORD = ''
@@ -88,7 +91,7 @@ def create_gource(key, position):
     update_repo(key)
     os.chdir(path_for_key(key))
     log = check_output(['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames'])
-    gource = Popen(['gource', '--log-format', 'git', '-i', '0', '-s', '0.0001', '--key', '-'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '-'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
     if os.fork() == 0:
         gource.stdin.write(log)
