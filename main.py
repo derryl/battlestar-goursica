@@ -17,10 +17,19 @@ import urllib2
 from time import sleep
 from datetime import datetime
 
+# Battlestar Goursica config
+BSG_CONFIG = open(os.path.abspath('.bsgconfig'), 'r')
+BSG_LINES = BSG_CONFIG.readlines()
+ORGANIZATION = BSG_LINES[0].rstrip()
+USERNAME = BSG_LINES[1].rstrip()
+PASSWORD = BSG_LINES[2].rstrip()
+
+# Global settings
 DISPLAY_COUNT = 2
 PASSWORD = ''
 REFRESH_RATE = 10 #seconds!
 REPO_STORE = os.path.abspath("repositories")
+GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
 
 if not os.path.exists(REPO_STORE):
     os.makedirs(REPO_STORE)
@@ -35,8 +44,8 @@ def retrieve_last_pushes():
 
     last_update = r.get('last_update') or datetime.min.isoformat() + 'Z'
 
-    req = urllib2.Request('https://api.github.com/users/f00bot/events/orgs/ff0000',
-                          headers={'Authorization': 'Basic %s' % base64.encodestring('f00bot:%s' % PASSWORD)})
+    req = urllib2.Request(GITHUB_API,
+                          headers={'Authorization': 'Basic %s' % base64.encodestring('%s:%s' % (USERNAME, PASSWORD))})
     events = loads(urllib2.urlopen(req).read())
     events = [e for e in events if e['type'] == u'PushEvent' and dateparse(e['created_at']) > dateparse(last_update)]
     events.reverse()  # chrono order
@@ -65,7 +74,7 @@ def update_repo(key):
     ref = '/'.join(key.split('/')[2:])
     if not os.path.exists(path_for_key(key)):
         logging.debug('Cloning repo %s' % repo)
-        check_output(['git', 'clone', 'git@github.com:%s.git' % repo, path_for_key(key)])
+        check_output(['git', 'clone', '-b', '%s' % ref, '--depth', '1', 'git@github.com:%s.git' % repo, path_for_key(key)])
         os.chdir(path_for_key(key))
         logging.debug('Checking out %s' % key)
         check_output(['git', 'checkout', ref])
