@@ -7,6 +7,7 @@ from dateutil.parser import parse as dateparse
 from collections import OrderedDict
 from json import loads
 from subprocess import Popen, PIPE, check_output
+import json
 import base64
 import logging
 import os
@@ -18,11 +19,10 @@ from time import sleep
 from datetime import datetime
 
 # Battlestar Goursica config
-BSG_CONFIG = open(os.path.abspath('.bsgconfig'), 'r')
-BSG_LINES = BSG_CONFIG.readlines()
-ORGANIZATION = BSG_LINES[0].rstrip()
-USERNAME = BSG_LINES[1].rstrip()
-PASSWORD = BSG_LINES[2].rstrip()
+BSG_CONFIG = json.load(open(os.path.abspath('.bsgconfig'), 'r'))
+ORGANIZATION = BSG_CONFIG['org']
+USERNAME = BSG_CONFIG['user']
+PASSWORD = BSG_CONFIG['pass']
 
 # Gource config
 GOURCE_CONFIG = os.path.abspath('.gourceconfig')
