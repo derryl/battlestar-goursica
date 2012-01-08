@@ -78,8 +78,6 @@ def update_repo(key):
         logging.debug('Cloning repo %s' % repo)
         check_output(['git', 'clone', '-b', '%s' % ref, '--depth', '1', 'git@github.com:%s.git' % repo, path_for_key(key)])
         os.chdir(path_for_key(key))
-        logging.debug('Checking out %s' % key)
-        check_output(['git', 'checkout', ref])
     else:
         os.chdir(path_for_key(key))
         logging.debug('Updating repo for %s' % key)
