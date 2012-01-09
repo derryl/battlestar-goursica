@@ -91,10 +91,8 @@ def create_gource(key, position):
     log = check_output(GIT_LOG_OPTS)
     gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '-'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
-    if os.fork() == 0:
-        gource.stdin.write(log)
-        gource.stdin.flush()
-        sys.exit()
+    gource.stdin.write(log)
+    gource.stdin.flush()
 
     gources[key] = {'process': gource, 'position': position}
 
@@ -105,10 +103,8 @@ def update_gource(key, oldrev, newrev):
     os.chdir(path_for_key(key))
     log = check_output(GIT_LOG_OPTS.append('%s..%s' % (oldrev, newrev)))
 
-    if os.fork() == 0:
-        gource.stdin.write(log)
-        gource.stdin.flush()
-        sys.exit()
+    gource.stdin.write(log)
+    gource.stdin.flush()
 
 
 def remove_gource(key):
