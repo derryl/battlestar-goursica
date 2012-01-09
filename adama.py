@@ -32,6 +32,7 @@ DISPLAY_COUNT = 2
 REPO_STORE = os.path.abspath('repositories')
 REFRESH_RATE = 10  # seconds!
 GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
+GIT_LOG_OPTS = ['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames']
 
 if not os.path.exists(REPO_STORE):
     os.makedirs(REPO_STORE)
@@ -87,7 +88,7 @@ def update_repo(key):
 def create_gource(key, position):
     update_repo(key)
     os.chdir(path_for_key(key))
-    log = check_output(['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames'])
+    log = check_output(GIT_LOG_OPTS)
     gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '-'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
     if os.fork() == 0:
@@ -102,7 +103,7 @@ def update_gource(key, oldrev, newrev):
     gource = gources[key]['process']
     update_repo(key)
     os.chdir(path_for_key(key))
-    log = check_output(['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames', '%s..%s' % (oldrev, newrev)])
+    log = check_output(GIT_LOG_OPTS.append('%s..%s' % (oldrev, newrev)))
 
     if os.fork() == 0:
         gource.stdin.write(log)
