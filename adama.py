@@ -41,7 +41,6 @@ gources = OrderedDict()  # In order of creation time, not screen position
 r = redis.StrictRedis(host='localhost', port=6379, db='battlestar_goursica')
 r.delete('last_update')
 
-
 def retrieve_last_pushes():
     ''' Returns an OrderedDict (in chronological order) of key, revision for all recent pushes since last check. '''
 
