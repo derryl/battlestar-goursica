@@ -19,13 +19,13 @@ from time import sleep
 from datetime import datetime
 
 # Battlestar Goursica config
-BSG_CONFIG = json.load(open(os.path.abspath('.bsgconfig'), 'r'))
+BSG_CONFIG = json.load(open(os.path.abspath('bsgconfig.json'), 'r'))
 ORGANIZATION = BSG_CONFIG['org']
 USERNAME = BSG_CONFIG['user']
 PASSWORD = BSG_CONFIG['pass']
 
 # Gource config
-GOURCE_CONFIG = os.path.abspath('.gourceconfig')
+GOURCE_CONFIG = os.path.abspath('gourceconfig.ini')
 
 # Global settings
 DISPLAY_COUNT = 2
@@ -77,7 +77,7 @@ def update_repo(key):
     ref = '/'.join(key.split('/')[2:])
     if not os.path.exists(path_for_key(key)):
         logging.debug('Cloning repo %s' % repo)
-        check_output(['git', 'clone', '-b', '%s' % ref, '--depth', '1', 'git@github.com:%s.git' % repo, path_for_key(key)])
+        check_output(['git', 'clone', '-b', ref, '--depth', '1', 'git@github.com:%s.git' % repo, path_for_key(key)])
         os.chdir(path_for_key(key))
     else:
         os.chdir(path_for_key(key))
@@ -91,11 +91,12 @@ def create_gource(key, position):
     log = check_output(GIT_LOG_OPTS)
     gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '-'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
+    # For some reason forking here (to prevent locking by gource taking its time accepting stdin)
+    # combined with depth=1 or since=date, was causing an old gource to be killed every time a new one was created.  Yikes.
     gource.stdin.write(log)
     gource.stdin.flush()
 
     gources[key] = {'process': gource, 'position': position}
-
 
 def update_gource(key, oldrev, newrev):
     gource = gources[key]['process']
@@ -143,6 +144,9 @@ def main(argv):
             # Save data
             if last_events:
                 r.hmset('last_events', last_events)
+
+#            for key, data in gources.iteritems():
+#                print key, data['process'].poll()
 
             sleep(REFRESH_RATE)
     finally:
