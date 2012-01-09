@@ -82,7 +82,7 @@ def update_repo(key):
     else:
         os.chdir(path_for_key(key))
         logging.debug('Updating repo for %s' % key)
-        check_output(['git', 'pull'])
+        check_output(['git', 'pull', 'origin', '%s' % ref])
 
 
 def create_gource(key, position):
