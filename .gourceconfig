@@ -7,7 +7,9 @@ default-user-image=../../users/default.png
 dont-stop=true
 file-filter=/project/static\-local/admin
 file-idle-time=0
-hide=bloom,progress
+hide=progress
 log-format=git
 user-image-dir=../../users
+highlight-all-users=true
+bloom-intensity=0.18
 
