@@ -101,8 +101,10 @@ def update_repo(key):
     check_output(['perl', '%s' % GRAVATAR_SCRIPT, '%s' % path_for_key(key)])
 
 
-def create_gource(key, position):
+def create_gource(key, in_place_of=None, position=None):
     update_repo(key)
+    if in_place_of:
+        position = remove_gource(in_place_of)
     os.chdir(path_for_key(key))
     log = check_output(GIT_LOG_OPTS)
     gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE)#, stdout=PIPE, stderr=PIPE)
@@ -151,13 +153,11 @@ def main(argv):
                     update_gource(key, oldrev, newrev)
                 elif old_gources:
                     oldest = old_gources.pop(0)
-                    logging.debug('Removing gource %s' % oldest)
-                    position = remove_gource(oldest)
-                    create_gource(key, position)
+                    logging.debug('Replacing gource %s with %s' % (oldest, key))
+                    create_gource(key, in_place_of=oldest)
                 else:
                     logging.debug('Adding gource %s' % key)
-                    position = 0
-                    create_gource(key, position)
+                    create_gource(key)
 
             # Save data
             if last_events:
