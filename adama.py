@@ -18,8 +18,8 @@ import urllib2
 from time import sleep
 from datetime import datetime
 
-# Set current directory
-CURRENT_DIR = os.getcwd()
+# Set current file directory
+CURRENT_DIR = os.path.abspath(__file__)
 
 # Battlestar Goursica config
 BSG_CONFIG = json.load(open(os.path.abspath('%s/bsgconfig.json' % CURRENT_DIR), 'r'))
