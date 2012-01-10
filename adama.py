@@ -18,6 +18,7 @@ import inspect
 import urllib2
 from time import sleep
 from datetime import datetime
+from pprint import pprint
 
 # Set current directory
 CURRENT_DIR = os.path.dirname(inspect.getfile(inspect.currentframe()))
@@ -68,7 +69,11 @@ def retrieve_last_pushes():
     for event in events:
         # Key looks like ff0000/project/some/branch/name (removes refs/heads)
         key = '/'.join([event['repo']['name'], re.sub('^refs/heads/', '', event['payload']['ref'])])
+        if key in last_events:
+            del last_events[key] # make sure to track the most recent one only
         last_events[key] = event['payload']['head']
+        pprint(event)
+        pprint(last_events)
 
     if events:
         r.set('last_update', events[-1]['created_at'])
@@ -114,7 +119,7 @@ def update_gource(key, oldrev, newrev):
     gource = gources[key]['process']
     update_repo(key)
     os.chdir(path_for_key(key))
-    log = check_output(GIT_LOG_OPTS.append('%s..%s' % (oldrev, newrev)))
+    log = check_output(GIT_LOG_OPTS + ['%s..%s' % (oldrev, newrev)])
 
     gource.stdin.write(log)
     gource.stdin.flush()
@@ -145,8 +150,9 @@ def main(argv):
                     logging.debug('Updating gource %s: %s -> %s' % (key, oldrev, newrev))
                     update_gource(key, oldrev, newrev)
                 elif old_gources:
-                    logging.debug('Removing gource %s' % key)
-                    position = remove_gource(old_gources[0])
+                    oldest = old_gources.pop(0)
+                    logging.debug('Removing gource %s' % oldest)
+                    position = remove_gource(oldest)
                     create_gource(key, position)
                 else:
                     logging.debug('Adding gource %s' % key)

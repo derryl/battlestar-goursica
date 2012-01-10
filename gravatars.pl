@@ -17,7 +17,7 @@ die("no .git/ directory found in current path\n") unless -d getcwd().'/.git';
 
 mkdir($output_dir) unless -d $output_dir;
 
-open(GITLOG, q/git log --pretty=format:"%ae|%an" |/) or die("failed to read git-log: $!\n");
+open(GITLOG, q/git log --pretty=format:"%ae|%an" -n 100 |/) or die("failed to read git-log: $!\n");
 
 my %processed_authors;
 
