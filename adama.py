@@ -18,18 +18,24 @@ import urllib2
 from time import sleep
 from datetime import datetime
 
+# Set current directory
+CURRENT_DIR = os.getcwd()
+
 # Battlestar Goursica config
-BSG_CONFIG = json.load(open(os.path.abspath('bsgconfig.json'), 'r'))
+BSG_CONFIG = json.load(open(os.path.abspath('%s/bsgconfig.json' % CURRENT_DIR), 'r'))
 ORGANIZATION = BSG_CONFIG['org']
 USERNAME = BSG_CONFIG['user']
 PASSWORD = BSG_CONFIG['pass']
 
 # Gource config
-GOURCE_CONFIG = os.path.abspath('gourceconfig.ini')
+GOURCE_CONFIG = os.path.abspath('%s/gourceconfig.ini' % CURRENT_DIR)
+
+# Gravatar
+GRAVATAR_SCRIPT = os.path.abspath('%s/gravatars.pl' % CURRENT_DIR)
 
 # Global settings
-DISPLAY_COUNT = 4 
-REPO_STORE = os.path.abspath('repositories')
+DISPLAY_COUNT = 4
+REPO_STORE = os.path.abspath('%s/repositories' % CURRENT_DIR)
 REFRESH_RATE = 10  # seconds!
 GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
 GIT_LOG_OPTS = ['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames', '-n', '100']
@@ -83,12 +89,15 @@ def update_repo(key):
         logging.debug('Updating repo for %s' % key)
         check_output(['git', 'pull', 'origin', '%s' % ref])
 
+    # Gravatar regardless of condition
+    check_output(['perl', '%s' % GRAVATAR_SCRIPT, '%s' % path_for_key(key)])
+
 
 def create_gource(key, position):
     update_repo(key)
     os.chdir(path_for_key(key))
     log = check_output(GIT_LOG_OPTS)
-    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
     # For some reason forking here (to prevent locking by gource taking its time accepting stdin)
     # combined with depth=1 or since=date, was causing an old gource to be killed every time a new one was created.  Yikes.
