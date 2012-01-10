@@ -32,7 +32,7 @@ DISPLAY_COUNT = 4
 REPO_STORE = os.path.abspath('repositories')
 REFRESH_RATE = 10  # seconds!
 GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
-GIT_LOG_OPTS = ['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames']
+GIT_LOG_OPTS = ['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames', '-n', '100']
 
 if not os.path.exists(REPO_STORE):
     os.makedirs(REPO_STORE)
