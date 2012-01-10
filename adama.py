@@ -28,7 +28,7 @@ PASSWORD = BSG_CONFIG['pass']
 GOURCE_CONFIG = os.path.abspath('gourceconfig.ini')
 
 # Global settings
-DISPLAY_COUNT = 2
+DISPLAY_COUNT = 4 
 REPO_STORE = os.path.abspath('repositories')
 REFRESH_RATE = 10  # seconds!
 GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
