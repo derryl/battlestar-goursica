@@ -22,7 +22,6 @@ from pprint import pprint
 
 # Set current directory
 CURRENT_DIR = os.path.dirname(inspect.getfile(inspect.currentframe()))
-print os.path.dirname(inspect.getfile(inspect.currentframe()))
 
 # Battlestar Goursica config
 BSG_CONFIG = json.load(open(os.path.abspath('%s/bsgconfig.json' % CURRENT_DIR), 'r'))
@@ -72,8 +71,6 @@ def retrieve_last_pushes():
         if key in last_events:
             del last_events[key] # make sure to track the most recent one only
         last_events[key] = event['payload']['head']
-        pprint(event)
-        pprint(last_events)
 
     if events:
         r.set('last_update', events[-1]['created_at'])
