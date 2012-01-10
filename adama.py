@@ -100,7 +100,7 @@ def create_gource(key, position):
     update_repo(key)
     os.chdir(path_for_key(key))
     log = check_output(GIT_LOG_OPTS)
-    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE)#, stdout=PIPE, stderr=PIPE)
 
     # For some reason forking here (to prevent locking by gource taking its time accepting stdin)
     # combined with depth=1 or since=date, was causing an old gource to be killed every time a new one was created.  Yikes.
@@ -146,7 +146,7 @@ def main(argv):
                     update_gource(key, oldrev, newrev)
                 elif old_gources:
                     logging.debug('Removing gource %s' % key)
-                    position = remove_gource(old_gources.pop(0))
+                    position = remove_gource(old_gources[0])
                     create_gource(key, position)
                 else:
                     logging.debug('Adding gource %s' % key)
