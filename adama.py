@@ -14,12 +14,14 @@ import os
 import re
 import redis
 import sys
+import inspect
 import urllib2
 from time import sleep
 from datetime import datetime
 
-# Set current file directory
-CURRENT_DIR = os.path.abspath(__file__)
+# Set current directory
+CURRENT_DIR = os.path.dirname(inspect.getfile(inspect.currentframe()))
+print os.path.dirname(inspect.getfile(inspect.currentframe()))
 
 # Battlestar Goursica config
 BSG_CONFIG = json.load(open(os.path.abspath('%s/bsgconfig.json' % CURRENT_DIR), 'r'))
