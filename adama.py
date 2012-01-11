@@ -3,6 +3,10 @@
 # run pip install -r requirements.txt
 # you'll need to have the redis server running, too ('brew install redis')
 
+# Linux requirements:
+# apt-get install sox
+# apt-get install python-tk
+
 from dateutil.parser import parse as dateparse
 from collections import OrderedDict
 from json import loads
