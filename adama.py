@@ -22,9 +22,15 @@ import inspect
 import urllib2
 from time import sleep
 from datetime import datetime
+import Tkinter
 
 # Set current directory
 CURRENT_DIR = os.path.dirname(inspect.getfile(inspect.currentframe()))
+
+# Get screen resolution
+t = Tkinter.Tk()
+SCREEN_WIDTH = t.winfo_screenwidth() - 2
+SCREEN_HEIGHT = t.winfo_screenheight() - 2
 
 # Battlestar Goursica config
 BSG_CONFIG = json.load(open(os.path.abspath('%s/bsgconfig.json' % CURRENT_DIR), 'r'))
@@ -42,7 +48,9 @@ GRAVATAR_SCRIPT = os.path.abspath('%s/gravatars.pl' % CURRENT_DIR)
 SOUND_FILE = os.path.abspath('%s/happykids.wav' % CURRENT_DIR)
 
 # Global settings
-DISPLAY_COUNT = 4
+ROWS = 3
+COLUMNS = 2
+DISPLAY_COUNT = ROWS * COLUMNS
 REPO_STORE = os.path.abspath('%s/repositories' % CURRENT_DIR)
 REFRESH_RATE = 10  # seconds!
 GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
@@ -113,7 +121,7 @@ def create_gource(key, in_place_of=None, position=None):
         position = remove_gource(in_place_of)
     os.chdir(path_for_key(key))
     log = check_output(GIT_LOG_OPTS)
-    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE)
+    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--viewport', '%sx%s' % (SCREEN_WIDTH // COLUMNS, SCREEN_HEIGHT // ROWS),  '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE)
 
     # For some reason forking here (to prevent locking by gource taking its time accepting stdin)
     # combined with depth=1 or since=date, was causing an old gource to be killed every time a new one was created.  Yikes.
