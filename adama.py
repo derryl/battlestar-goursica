@@ -3,13 +3,18 @@
 # run pip install -r requirements.txt
 # you'll need to have the redis server running, too ('brew install redis')
 
+# Linux requirements:
+# apt-get install sox
+# apt-get install python-tk
+
 from collections import OrderedDict
 from datetime import datetime
 from dateutil.parser import parse as dateparse
 from json import loads
-from pprint import pprint
-from subprocess import Popen, PIPE, check_output, CalledProcessError
+from subprocess import CalledProcessError, Popen, PIPE, check_output, check_call, \
+    call
 from time import sleep
+import Tkinter
 import base64
 import inspect
 import json
@@ -22,6 +27,11 @@ import urllib2
 
 # Set current directory
 CURRENT_DIR = os.path.dirname(inspect.getfile(inspect.currentframe()))
+
+# Get screen resolution
+t = Tkinter.Tk()
+SCREEN_WIDTH = t.winfo_screenwidth()
+SCREEN_HEIGHT = t.winfo_screenheight()
 
 # Battlestar Goursica config
 BSG_CONFIG = json.load(open(os.path.abspath('%s/bsgconfig.json' % CURRENT_DIR), 'r'))
@@ -39,7 +49,9 @@ GRAVATAR_SCRIPT = os.path.abspath('%s/gravatars.pl' % CURRENT_DIR)
 SOUND_FILE = os.path.abspath('%s/happykids.wav' % CURRENT_DIR)
 
 # Global settings
-DISPLAY_COUNT = 4
+ROWS = 3
+COLUMNS = 2
+DISPLAY_COUNT = ROWS * COLUMNS
 REPO_STORE = os.path.abspath('%s/repositories' % CURRENT_DIR)
 REFRESH_RATE = 10  # seconds!
 GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
@@ -113,7 +125,7 @@ def create_gource(key, in_place_of=None, position=None):
         position = remove_gource(in_place_of)
     os.chdir(path_for_key(key))
     log = check_output(GIT_LOG_OPTS)
-    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE)#, stdout=PIPE, stderr=PIPE)
+    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--viewport', '%sx%s' % ((SCREEN_WIDTH // COLUMNS) - COLUMNS, (SCREEN_HEIGHT // ROWS) - ROWS),  '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE)
 
     # For some reason forking here (to prevent locking by gource taking its time accepting stdin)
     # combined with depth=1 or since=date, was causing an old gource to be killed every time a new one was created.  Yikes.
@@ -147,21 +159,16 @@ def remove_gource(key):
 
 def play_sound():
     if not os.fork():
-        try:
+        if call('which afplay', shell=True) == 0:
             # OS X
-            os.system('afplay %s' % SOUND_FILE)
-            sys.exit()
-        except Exception, e:
-            # logging.exception(e)
-            logging.debug("afplay command not supported, trying play (apt-get install sox)")
-
-            try:
-                # Linux
-                os.system('play %s' % SOUND_FILE)
-                sys.exit()
-            except Exception, e:
-                logging.exception(e)
-                pass
+            check_call(['afplay', SOUND_FILE])
+        elif call('which play', shell=True) == 0:
+            # Linux
+            print 'play', SOUND_FILE
+            check_call(['play', SOUND_FILE])
+        else:
+            logging.warning('No compatible sound program (afplay/play) detected')
+        sys.exit()
 
 
 def main(argv):
