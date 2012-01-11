@@ -35,6 +35,9 @@ GOURCE_CONFIG = os.path.abspath('%s/gourceconfig.ini' % CURRENT_DIR)
 # Gravatar
 GRAVATAR_SCRIPT = os.path.abspath('%s/gravatars.pl' % CURRENT_DIR)
 
+# Sound
+SOUND_FILE = os.path.abspath('%s/happykids.wav' % CURRENT_DIR)
+
 # Global settings
 DISPLAY_COUNT = 4
 REPO_STORE = os.path.abspath('%s/repositories' % CURRENT_DIR)
@@ -97,6 +100,9 @@ def update_repo(key):
     # Gravatar regardless of condition
     check_output(['perl', '%s' % GRAVATAR_SCRIPT, '%s' % path_for_key(key)])
 
+    # Yay sound.
+    play_sound()
+
 
 def create_gource(key, in_place_of=None, position=None):
     update_repo(key)
@@ -108,8 +114,10 @@ def create_gource(key, in_place_of=None, position=None):
 
     # For some reason forking here (to prevent locking by gource taking its time accepting stdin)
     # combined with depth=1 or since=date, was causing an old gource to be killed every time a new one was created.  Yikes.
-    gource.stdin.write(log)
-    gource.stdin.flush()
+    if not os.fork():
+        gource.stdin.write(log)
+        gource.stdin.flush()
+        os._exit(0)
 
     gources[key] = {'process': gource, 'position': position}
 
@@ -130,6 +138,25 @@ def remove_gource(key):
     gource.terminate()
     del gources[key]
     return position
+
+
+def play_sound():
+    if not os.fork():
+        try:
+            # OS X
+            os.system('afplay %s' % SOUND_FILE)
+            os._exit(0)
+        except Exception, e:
+            # logging.exception(e)
+            logging.debug("afplay command not supported, trying play (apt-get install sox)")
+
+            try:
+                # Linux
+                os.system('play %s' % SOUND_FILE)
+                os._exit(0)
+            except Exception, e:
+                logging.exception(e)
+                pass
 
 
 def main(argv):
