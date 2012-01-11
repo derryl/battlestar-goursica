@@ -147,7 +147,6 @@ def play_sound():
         try:
             # OS X
             os.system('afplay %s' % SOUND_FILE)
-            sys.exit()
         except Exception, e:
             # logging.exception(e)
             logging.debug("afplay command not supported, trying play (apt-get install sox)")
@@ -155,10 +154,11 @@ def play_sound():
             try:
                 # Linux
                 os.system('play %s' % SOUND_FILE)
-                sys.exit()
             except Exception, e:
                 logging.exception(e)
                 pass
+        finally:
+            sys.exit()
 
 
 def main(argv):
