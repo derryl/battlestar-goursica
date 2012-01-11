@@ -6,7 +6,7 @@
 from dateutil.parser import parse as dateparse
 from collections import OrderedDict
 from json import loads
-from subprocess import Popen, PIPE, check_output
+from subprocess import Popen, PIPE, check_output, check_call, call
 import json
 import base64
 import logging
@@ -18,7 +18,6 @@ import inspect
 import urllib2
 from time import sleep
 from datetime import datetime
-from pprint import pprint
 
 # Set current directory
 CURRENT_DIR = os.path.dirname(inspect.getfile(inspect.currentframe()))
@@ -110,7 +109,7 @@ def create_gource(key, in_place_of=None, position=None):
         position = remove_gource(in_place_of)
     os.chdir(path_for_key(key))
     log = check_output(GIT_LOG_OPTS)
-    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE)#, stdout=PIPE, stderr=PIPE)
+    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE)
 
     # For some reason forking here (to prevent locking by gource taking its time accepting stdin)
     # combined with depth=1 or since=date, was causing an old gource to be killed every time a new one was created.  Yikes.
