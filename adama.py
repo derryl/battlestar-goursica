@@ -117,7 +117,7 @@ def create_gource(key, in_place_of=None, position=None):
     if not os.fork():
         gource.stdin.write(log)
         gource.stdin.flush()
-        os._exit(0)
+        sys.exit()
 
     gources[key] = {'process': gource, 'position': position}
 
@@ -131,7 +131,7 @@ def update_gource(key, oldrev, newrev):
     if not os.fork():
         gource.stdin.write(log)
         gource.stdin.flush()
-        os._exit(0)
+        sys.exit()
 
 
 def remove_gource(key):
@@ -147,7 +147,7 @@ def play_sound():
         try:
             # OS X
             os.system('afplay %s' % SOUND_FILE)
-            os._exit(0)
+            sys.exit()
         except Exception, e:
             # logging.exception(e)
             logging.debug("afplay command not supported, trying play (apt-get install sox)")
@@ -155,13 +155,14 @@ def play_sound():
             try:
                 # Linux
                 os.system('play %s' % SOUND_FILE)
-                os._exit(0)
+                sys.exit()
             except Exception, e:
                 logging.exception(e)
                 pass
 
 
 def main(argv):
+    pid = os.getpid()
     try:
         while True:
             # EVENT LOOP!!!
@@ -193,10 +194,11 @@ def main(argv):
 #                print key, data['process'].poll()
 
             sleep(REFRESH_RATE)
-    finally:
-        for gource in gources.values():
-            gource['process'].terminate()
 
+    finally:
+        if pid == os.getpid():
+            for gource in gources.values():
+                gource['process'].terminate()
 
 if __name__ == '__main__':
     log = logging.getLogger()
