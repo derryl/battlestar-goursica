@@ -128,8 +128,10 @@ def update_gource(key, oldrev, newrev):
     os.chdir(path_for_key(key))
     log = check_output(GIT_LOG_OPTS + ['%s..%s' % (oldrev, newrev)])
 
-    gource.stdin.write(log)
-    gource.stdin.flush()
+    if not os.fork():
+        gource.stdin.write(log)
+        gource.stdin.flush()
+        os._exit(0)
 
 
 def remove_gource(key):
