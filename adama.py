@@ -144,21 +144,16 @@ def remove_gource(key):
 
 def play_sound():
     if not os.fork():
-        try:
+        if call('which afplay', shell=True) == 0:
             # OS X
-            os.system('afplay %s' % SOUND_FILE)
-        except Exception, e:
-            # logging.exception(e)
-            logging.debug("afplay command not supported, trying play (apt-get install sox)")
-
-            try:
-                # Linux
-                os.system('play %s' % SOUND_FILE)
-            except Exception, e:
-                logging.exception(e)
-                pass
-        finally:
-            sys.exit()
+            check_call(['afplay', SOUND_FILE])
+        elif call('which play', shell=True) == 0:
+            # Linux
+            print 'play', SOUND_FILE
+            check_call(['play', SOUND_FILE])
+        else:
+            logging.warning('No compatible sound program (afplay/play) detected')
+        sys.exit()
 
 
 def main(argv):
