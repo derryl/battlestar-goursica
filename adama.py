@@ -72,7 +72,7 @@ def retrieve_last_pushes():
         # Key looks like ff0000/project/some/branch/name (removes refs/heads)
         key = '/'.join([event['repo']['name'], re.sub('^refs/heads/', '', event['payload']['ref'])])
         if key in last_events:
-            del last_events[key] # make sure to track the most recent one only
+            del last_events[key]  # make sure to track the most recent one only
         last_events[key] = event['payload']['head']
 
     if events:
@@ -194,6 +194,7 @@ def main(argv):
     finally:
         for gource in gources.values():
             gource['process'].terminate()
+
 
 if __name__ == '__main__':
     log = logging.getLogger()
