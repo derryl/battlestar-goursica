@@ -3,22 +3,22 @@
 # run pip install -r requirements.txt
 # you'll need to have the redis server running, too ('brew install redis')
 
-from dateutil.parser import parse as dateparse
 from collections import OrderedDict
+from datetime import datetime
+from dateutil.parser import parse as dateparse
 from json import loads
-from subprocess import Popen, PIPE, check_output
-import json
+from pprint import pprint
+from subprocess import Popen, PIPE, check_output, CalledProcessError
+from time import sleep
 import base64
+import inspect
+import json
 import logging
 import os
 import re
 import redis
 import sys
-import inspect
 import urllib2
-from time import sleep
-from datetime import datetime
-from pprint import pprint
 
 # Set current directory
 CURRENT_DIR = os.path.dirname(inspect.getfile(inspect.currentframe()))
@@ -88,14 +88,17 @@ def path_for_key(key):
 def update_repo(key):
     repo = '/'.join(key.split('/')[:2])
     ref = '/'.join(key.split('/')[2:])
-    if not os.path.exists(path_for_key(key)):
-        logging.debug('Cloning repo %s' % repo)
-        check_output(['git', 'clone', '-b', ref, '--depth', '1', 'git@github.com:%s.git' % repo, path_for_key(key)])
-        os.chdir(path_for_key(key))
-    else:
-        os.chdir(path_for_key(key))
-        logging.debug('Updating repo for %s' % key)
-        check_output(['git', 'pull', 'origin', '%s' % ref])
+    try:
+        if not os.path.exists(path_for_key(key)):
+            logging.debug('Cloning repo %s' % repo)
+            check_output(['git', 'clone', '-b', ref, '--depth', '1', 'git@github.com:%s.git' % repo, path_for_key(key)])
+            os.chdir(path_for_key(key))
+        else:
+            os.chdir(path_for_key(key))
+            logging.debug('Updating repo for %s' % key)
+            check_output(['git', 'pull', 'origin', '%s' % ref])
+    except CalledProcessError:
+        logging.warn('Looks like we got an error from a called git process.  Assuming repo is gone.')
 
     # Gravatar regardless of condition
     check_output(['perl', '%s' % GRAVATAR_SCRIPT, '%s' % path_for_key(key)])
