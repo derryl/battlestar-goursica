@@ -61,8 +61,10 @@ if not os.path.exists(REPO_STORE):
 gources = OrderedDict()  # In order of creation time, not screen position
 last_update = datetime.min.isoformat() + 'Z'
 
+
 class RepoGoneError(Exception):
     pass
+
 
 def retrieve_last_pushes():
     ''' Returns an OrderedDict (in chronological order) of key, revision for all recent pushes since last check. '''
@@ -200,7 +202,7 @@ def main(argv):
                 except RepoGoneError:
                     if remaining_events:
                         k, v = remaining_events.popitem(last=True)
-                        events_to_show[k]=v
+                        events_to_show[k] = v
 
 #            for key, data in gources.iteritems():
 #                print key, data['process'].poll()
