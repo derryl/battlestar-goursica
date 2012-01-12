@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 # run pip install -r requirements.txt
-# you'll need to have the redis server running, too ('brew install redis')
 
 # Linux requirements:
 # apt-get install sox
