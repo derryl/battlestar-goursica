@@ -199,8 +199,9 @@ def main(argv):
                         logging.debug('Adding gource %s' % key)
                         create_gource(key, newrev)
                 except RepoGoneError:
-                    k, v = remaining_events.popitem(last=True)
-                    events_to_show[k]=v
+                    if remaining_events:
+                        k, v = remaining_events.popitem(last=True)
+                        events_to_show[k]=v
 
 #            for key, data in gources.iteritems():
 #                print key, data['process'].poll()
