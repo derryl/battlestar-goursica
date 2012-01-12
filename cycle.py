@@ -4,8 +4,11 @@
 # apt-get install xdotool
 
 import logging
+import os
 import sys
 from subprocess import call
+
+os.environ['DISPLAY'] = ':0.0'
 
 CYCLES = 5
 
