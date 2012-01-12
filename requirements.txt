@@ -2,5 +2,3 @@
 #    NOTE: to avoid conflicts, every requirement should include the version
 
 python-dateutil   == 1.5
-redis             == 2.4.10
-hiredis           == 0.1.0

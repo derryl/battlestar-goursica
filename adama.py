@@ -21,7 +21,6 @@ import json
 import logging
 import os
 import re
-import redis
 import sys
 import urllib2
 
@@ -61,14 +60,14 @@ if not os.path.exists(REPO_STORE):
     os.makedirs(REPO_STORE)
 
 gources = OrderedDict()  # In order of creation time, not screen position
-r = redis.StrictRedis(host='localhost', port=6379, db='battlestar_goursica')
-r.delete('last_update')
+last_update = datetime.min.isoformat() + 'Z'
 
+class RepoGoneError(Exception):
+    pass
 
 def retrieve_last_pushes():
     ''' Returns an OrderedDict (in chronological order) of key, revision for all recent pushes since last check. '''
-
-    last_update = r.get('last_update') or datetime.min.isoformat() + 'Z'
+    global last_update
 
     req = urllib2.Request(GITHUB_API,
                           headers={'Authorization': 'Basic %s' % base64.encodestring('%s:%s' % (USERNAME, PASSWORD))})
@@ -88,7 +87,7 @@ def retrieve_last_pushes():
         last_events[key] = event['payload']['head']
 
     if events:
-        r.set('last_update', events[-1]['created_at'])
+        last_update = events[-1]['created_at']
 
     return last_events
 
@@ -111,6 +110,7 @@ def update_repo(key):
             check_output(['git', 'pull', 'origin', '%s' % ref])
     except CalledProcessError:
         logging.warn('Looks like we got an error from a called git process.  Assuming repo is gone.')
+        raise RepoGoneError
 
     # Gravatar regardless of condition
     check_output(['perl', '%s' % GRAVATAR_SCRIPT, '%s' % path_for_key(key)])
@@ -119,34 +119,36 @@ def update_repo(key):
     play_sound()
 
 
-def create_gource(key, in_place_of=None, position=None):
+def create_gource(key, newrev, in_place_of=None, position=None):
     update_repo(key)
     if in_place_of:
         position = remove_gource(in_place_of)
     os.chdir(path_for_key(key))
+
     log = check_output(GIT_LOG_OPTS)
     gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--viewport', '%sx%s' % ((SCREEN_WIDTH // COLUMNS) - COLUMNS, (SCREEN_HEIGHT // ROWS) - ROWS),  '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE)
 
-    # For some reason forking here (to prevent locking by gource taking its time accepting stdin)
-    # combined with depth=1 or since=date, was causing an old gource to be killed every time a new one was created.  Yikes.
     if not os.fork():
         gource.stdin.write(log)
         gource.stdin.flush()
         sys.exit()
 
-    gources[key] = {'process': gource, 'position': position}
+    gources[key] = {'process': gource, 'position': position, 'lastrev': newrev}
 
 
-def update_gource(key, oldrev, newrev):
-    gource = gources[key]['process']
+def update_gource(key, newrev):
     update_repo(key)
     os.chdir(path_for_key(key))
-    log = check_output(GIT_LOG_OPTS + ['%s..%s' % (oldrev, newrev)])
+
+    gource = gources[key]['process']
+    log = check_output(GIT_LOG_OPTS + ['%s..%s' % (gource['lastrev'], newrev)])
 
     if not os.fork():
         gource.stdin.write(log)
         gource.stdin.flush()
         sys.exit()
+
+    gource['lastrev'] = newrev
 
 
 def remove_gource(key):
@@ -176,29 +178,29 @@ def main(argv):
     try:
         while True:
             # EVENT LOOP!!!
-            last_events = retrieve_last_pushes()
-            events_to_show = OrderedDict([k, last_events[k]] for k in last_events.keys()[-1 * DISPLAY_COUNT:])  # if we received more than we can show, ignore the oldest
+            events = retrieve_last_pushes()
+            events_to_show = OrderedDict([k, events[k]] for k in events.keys()[-1 * DISPLAY_COUNT:])  # if we received more than we can show, ignore the oldest
+            remaining_events = OrderedDict([k, events[k]] for k in events.keys()[:-1 * DISPLAY_COUNT])
 
             # Now which gources do we keep and which do we replace?
             old_gources = [id for id in gources if id not in events_to_show]
             assert len(old_gources) <= [len(set(events_to_show.keys()) - set(gources.keys()))]
 
             for key, newrev in events_to_show.iteritems():
-                if key in gources:
-                    oldrev = r.hget('last_events', key)
-                    logging.debug('Updating gource %s: %s -> %s' % (key, oldrev, newrev))
-                    update_gource(key, oldrev, newrev)
-                elif old_gources:
-                    oldest = old_gources.pop(0)
-                    logging.debug('Replacing gource %s with %s' % (oldest, key))
-                    create_gource(key, in_place_of=oldest)
-                else:
-                    logging.debug('Adding gource %s' % key)
-                    create_gource(key)
-
-            # Save data
-            if last_events:
-                r.hmset('last_events', last_events)
+                try:
+                    if key in gources:
+                        logging.debug('Updating gource %s: -> %s' % (key, newrev))
+                        update_gource(key, newrev)
+                    elif old_gources:
+                        oldest = old_gources.pop(0)
+                        logging.debug('Replacing gource %s with %s' % (oldest, key))
+                        create_gource(key, newrev, in_place_of=oldest)
+                    else:
+                        logging.debug('Adding gource %s' % key)
+                        create_gource(key, newrev)
+                except RepoGoneError:
+                    k, v = remaining_events.popitem(last=True)
+                    events_to_show[k]=v
 
 #            for key, data in gources.iteritems():
 #                print key, data['process'].poll()
