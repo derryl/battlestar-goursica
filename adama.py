@@ -97,6 +97,14 @@ def path_for_key(key):
     return os.path.join(REPO_STORE, re.sub(r'[/.\\]', '_', key))
 
 
+def clean_title(key):
+    return key.split('/', 1)[-1].replace('/', ' / ')
+
+
+def calculate_viewport():
+    return '%sx%s' % ((SCREEN_WIDTH // COLUMNS) - COLUMNS, (SCREEN_HEIGHT // ROWS) - ROWS)
+
+
 def update_repo(key):
     repo = '/'.join(key.split('/')[:2])
     ref = '/'.join(key.split('/')[2:])
@@ -127,7 +135,7 @@ def create_gource(key, newrev, in_place_of=None, position=None):
     os.chdir(path_for_key(key))
 
     log = check_output(GIT_LOG_OPTS)
-    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--viewport', '%sx%s' % ((SCREEN_WIDTH // COLUMNS) - COLUMNS, (SCREEN_HEIGHT // ROWS) - ROWS),  '--title', key.split('/', 1)[-1].replace('/', ' / '), '-'], stdin=PIPE)
+    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--viewport', calculate_viewport(),  '--title', clean_title(key), '-'], stdin=PIPE)
 
     if not os.fork():
         gource.stdin.write(log)
