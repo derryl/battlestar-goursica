@@ -33,9 +33,10 @@ SCREEN_HEIGHT = t.winfo_screenheight()
 
 # Battlestar Goursica config
 BSG_CONFIG = json.load(open(os.path.abspath('%s/bsgconfig.json' % CURRENT_DIR), 'r'))
-ORGANIZATION = BSG_CONFIG['org']
-USERNAME = BSG_CONFIG['user']
-PASSWORD = BSG_CONFIG['pass']
+ORGANIZATION = BSG_CONFIG.get('org')
+USERNAME = BSG_CONFIG.get('user')
+PASSWORD = BSG_CONFIG.get('pass')
+ACTIVITY = BSG_CONFIG.get('activity')
 
 # Gource config
 GOURCE_CONFIG = os.path.abspath('%s/gourceconfig.ini' % CURRENT_DIR)
@@ -52,8 +53,20 @@ COLUMNS = 2
 DISPLAY_COUNT = ROWS * COLUMNS
 REPO_STORE = os.path.abspath('%s/repositories' % CURRENT_DIR)
 REFRESH_RATE = 10  # seconds!
-GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
 GIT_LOG_OPTS = ['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames', '-n', '100']
+
+if USERNAME and PASSWORD:
+    HEADERS = {'Authorization': 'Basic %s' % base64.encodestring('%s:%s' % (USERNAME, PASSWORD))}
+else:
+    HEADERS = {}
+
+if ORGANIZATION:
+    if USERNAME and PASSWORD and ACTIVITY == 'all':
+        GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s?per_page=100' % (USERNAME, ORGANIZATION)
+    else:
+        GITHUB_API = 'https://api.github.com/orgs/%s/events?per_page=100' % (ORGANIZATION)
+elif USERNAME:
+    GITHUB_API = 'https://api.github.com/users/%s/events?per_page=100' % USERNAME
 
 if not os.path.exists(REPO_STORE):
     os.makedirs(REPO_STORE)
@@ -71,9 +84,9 @@ def retrieve_last_pushes():
     global last_update
 
     req = urllib2.Request(GITHUB_API,
-                          headers={'Authorization': 'Basic %s' % base64.encodestring('%s:%s' % (USERNAME, PASSWORD))})
+                          headers=HEADERS)
     events = loads(urllib2.urlopen(req).read())
-    events = [e for e in events if e['type'] == u'PushEvent' and dateparse(e['created_at']) > dateparse(last_update)]
+    events = [e for e in events if e['type'] == u'PushEvent' and (ACTIVITY == 'all' or e['public']) and dateparse(e['created_at']) > dateparse(last_update)]
     events.reverse()  # chrono order
 
     if not events:
