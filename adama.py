@@ -163,14 +163,14 @@ def update_gource(key, newrev):
     os.chdir(path_for_key(key))
 
     gource = gources[key]['process']
-    log = check_output(GIT_LOG_OPTS + ['%s..%s' % (gource['lastrev'], newrev)])
+    log = check_output(GIT_LOG_OPTS + ['%s..%s' % (gources[key]['lastrev'], newrev)])
 
     if not os.fork():
         gource.stdin.write(log)
         gource.stdin.flush()
         sys.exit()
 
-    gource['lastrev'] = newrev
+    gources[key]['lastrev'] = newrev
 
 
 def remove_gource(key):
@@ -224,6 +224,8 @@ def main(argv):
                     if remaining_events:
                         k, v = remaining_events.popitem(last=True)
                         events_to_show[k] = v
+                    else:
+                        logging.warn('No remaining events to show.')
 
 #            for key, data in gources.iteritems():
 #                print key, data['process'].poll()
