@@ -129,7 +129,7 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((modm .|. shiftMask, xK_q     ), io (exitWith ExitSuccess))
  
     -- Restart xmonad
-    , ((modm              , xK_q     ), restart "xmonad" True)
+    , ((modm,               xK_q     ), spawn "pkill -U `whoami` -f gource"  >> spawn "pkill -U `whoami` -f adama.py" >> restart "xmonad" True)
     ]
     ++
  
