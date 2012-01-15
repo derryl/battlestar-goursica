@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import sys
+import md5
 import urllib2
 
 # Set current directory
@@ -42,7 +43,7 @@ ACTIVITY = BSG_CONFIG.get('activity')
 GOURCE_CONFIG = os.path.abspath('%s/gourceconfig.ini' % CURRENT_DIR)
 
 # Gravatar
-GRAVATAR_SCRIPT = os.path.abspath('%s/gravatars.pl' % CURRENT_DIR)
+GRAVATAR_SIZE = 90
 
 # Sound
 SOUND_FILE = os.path.abspath('%s/happykids.wav' % CURRENT_DIR)
@@ -135,7 +136,7 @@ def update_repo(key):
         raise RepoGoneError
 
     # Gravatar regardless of condition
-    check_output(['perl', '%s' % GRAVATAR_SCRIPT, '%s' % path_for_key(key)])
+    download_gravatars(path_for_key(key))
 
     # Yay sound.
     play_sound()
@@ -193,6 +194,63 @@ def play_sound():
         else:
             logging.warning('No compatible sound program (afplay/play) detected')
         sys.exit()
+
+
+def filter_authors(authors):
+    seen = set()
+    seen_add = seen.add
+    return [x for x in authors if x not in seen and not seen_add(x)]
+
+
+def fetch_gravatars(path, lines):
+    authors = filter_authors(lines)
+    logging.debug('Attempting to download %s', authors)
+
+    while authors:
+        line = authors[0]
+        email, author = line.split('|')
+        author_image_file = '%s/%s.png' % (path, author)
+
+        # Download the file if it does not exist
+        if not os.path.isfile(author_image_file):
+            gravatar_url = 'http://www.gravatar.com/avatar/%s?d=404&size=%s' % (md5.new(email).hexdigest(), GRAVATAR_SIZE)
+            logging.warn('Fetching image for "%s" %s (%s)...' % (author, email, gravatar_url))
+
+            try:
+                url = urllib2.urlopen(gravatar_url)
+                urlcode = url.getcode()
+
+                if urlcode == 200:
+                    logging.debug('Found new image.')
+                    f = open(author_image_file, 'wb')
+                    f.write(url.read())
+                    f.close()
+                    url.close()
+                else:
+                    logging.debug('Server returned error code %s' % urlcode)
+            except urllib2.HTTPError, e:
+                logging.debug(e)
+        else:
+            logging.debug('File already exists :\\')
+
+        authors.remove(line)
+
+
+def parse_git_log(path):
+    log = check_output(['git', 'log', '--pretty=format:%ae|%an', '-n', '100'])
+    lines = log.split('\n')
+
+    fetch_gravatars(path, lines)
+
+
+def download_gravatars(path):
+    os.chdir(path)
+    abspath = '%s/.git/avatar' % os.getcwd()
+
+    if not os.path.exists(abspath):
+        os.makedirs(abspath)
+
+    parse_git_log(abspath)
 
 
 def main(argv):
