@@ -48,13 +48,18 @@ GRAVATAR_SIZE = 90
 # Sound
 SOUND_FILE = os.path.abspath('%s/happykids.wav' % CURRENT_DIR)
 
+# Git log settings
+GIT_LOG_LIMIT = 100
+GIT_LOG_OPTS = ['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames']
+if GIT_LOG_LIMIT:
+    GIT_LOG_OPTS.extend(['-n', '%s' % GIT_LOG_LIMIT])
+
 # Global settings
 ROWS = 3
 COLUMNS = 2
 DISPLAY_COUNT = ROWS * COLUMNS
 REPO_STORE = os.path.abspath('%s/repositories' % CURRENT_DIR)
 REFRESH_RATE = 10  # seconds!
-GIT_LOG_OPTS = ['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames', '-n', '100']
 
 if USERNAME and PASSWORD:
     HEADERS = {'Authorization': 'Basic %s' % base64.encodestring('%s:%s' % (USERNAME, PASSWORD))}
@@ -236,8 +241,12 @@ def fetch_gravatars(path, lines):
         authors.remove(line)
 
 
-def parse_git_log(path):
-    log = check_output(['git', 'log', '--pretty=format:%ae|%an', '-n', '100'])
+def parse_git_authors(path):
+    authors = ['git', 'log', '--pretty=format:%ae|%an']
+    if GIT_LOG_LIMIT:
+        authors.extend(['-n', '%s' % GIT_LOG_LIMIT])
+
+    log = check_output(authors)
     lines = log.split('\n')
 
     fetch_gravatars(path, lines)
@@ -250,7 +259,7 @@ def download_gravatars(path):
     if not os.path.exists(abspath):
         os.makedirs(abspath)
 
-    parse_git_log(abspath)
+    parse_git_authors(abspath)
 
 
 def main(argv):
