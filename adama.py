@@ -40,7 +40,7 @@ PASSWORD = BSG_CONFIG.get('pass')
 ACTIVITY = BSG_CONFIG.get('activity')
 
 # Gource config
-GOURCE_CONFIG = os.path.abspath('%s/gourceconfig.ini' % CURRENT_DIR)
+GOURCE_OPTS = ['gource', '--load-config', os.path.abspath('%s/gourceconfig.ini' % CURRENT_DIR)]
 
 # Gravatar
 GRAVATAR_SIZE = 90
@@ -60,6 +60,7 @@ COLUMNS = 2
 DISPLAY_COUNT = ROWS * COLUMNS
 REPO_STORE = os.path.abspath('%s/repositories' % CURRENT_DIR)
 REFRESH_RATE = 10  # seconds!
+OH_SO_PRETTY = False
 
 if USERNAME and PASSWORD:
     HEADERS = {'Authorization': 'Basic %s' % base64.encodestring('%s:%s' % (USERNAME, PASSWORD))}
@@ -68,11 +69,11 @@ else:
 
 if ORGANIZATION:
     if USERNAME and PASSWORD and ACTIVITY == 'all':
-        GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s?per_page=100' % (USERNAME, ORGANIZATION)
+        GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
     else:
-        GITHUB_API = 'https://api.github.com/orgs/%s/events?per_page=100' % (ORGANIZATION)
+        GITHUB_API = 'https://api.github.com/orgs/%s/events' % (ORGANIZATION)
 elif USERNAME:
-    GITHUB_API = 'https://api.github.com/users/%s/events?per_page=100' % USERNAME
+    GITHUB_API = 'https://api.github.com/users/%s/events' % USERNAME
 
 if not os.path.exists(REPO_STORE):
     os.makedirs(REPO_STORE)
@@ -130,7 +131,8 @@ def update_repo(key):
     try:
         if not os.path.exists(path_for_key(key)):
             logging.debug('Cloning repo %s' % repo)
-            check_output(['git', 'clone', '-b', ref, '--depth', '1', 'git@github.com:%s.git' % repo, path_for_key(key)])
+            # check_output(['git', 'clone', '-b', ref, '--depth', '1', 'git@github.com:%s.git' % repo, path_for_key(key)])
+            check_output(['git', 'clone', '-b', ref, 'git@github.com:%s.git' % repo, path_for_key(key)])
             os.chdir(path_for_key(key))
         else:
             os.chdir(path_for_key(key))
@@ -154,9 +156,16 @@ def create_gource(key, newrev, in_place_of=None, position=None):
     os.chdir(path_for_key(key))
 
     log = check_output(GIT_LOG_OPTS)
-    gource = Popen(['gource', '--load-config', GOURCE_CONFIG, '--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--viewport', calculate_viewport(),  '--title', clean_title(key), '-'], stdin=PIPE)
+    gource_opts = GOURCE_OPTS + ['--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--viewport', calculate_viewport(),  '--title', clean_title(key)]
 
-    if not os.fork():
+    if not OH_SO_PRETTY:
+        gource_opts.append('-')
+    else:
+        gource_opts.append('--loop')
+
+    gource = Popen(gource_opts, stdin=PIPE)
+
+    if not OH_SO_PRETTY and not os.fork():
         gource.stdin.write(log)
         gource.stdin.flush()
         sys.exit()
@@ -185,6 +194,38 @@ def remove_gource(key):
     gource.terminate()
     del gources[key]
     return position
+
+
+def generate_gources():
+    events = retrieve_last_pushes()
+    events_to_show = OrderedDict([k, events[k]] for k in events.keys()[-1 * DISPLAY_COUNT:])  # if we received more than we can show, ignore the oldest
+    remaining_events = OrderedDict([k, events[k]] for k in events.keys()[:-1 * DISPLAY_COUNT])
+
+    # Now which gources do we keep and which do we replace?
+    old_gources = [id for id in gources if id not in events_to_show]
+    assert len(old_gources) <= [len(set(events_to_show.keys()) - set(gources.keys()))]
+
+    for key, newrev in events_to_show.iteritems():
+        try:
+            if key in gources:
+                logging.debug('Updating gource %s: -> %s' % (key, newrev))
+                update_gource(key, newrev)
+            elif old_gources:
+                oldest = old_gources.pop(0)
+                logging.debug('Replacing gource %s with %s' % (oldest, key))
+                create_gource(key, newrev, in_place_of=oldest)
+            else:
+                logging.debug('Adding gource %s' % key)
+                create_gource(key, newrev)
+        except RepoGoneError:
+            if remaining_events:
+                k, v = remaining_events.popitem(last=True)
+                events_to_show[k] = v
+            else:
+                logging.warn('No remaining events to show.')
+
+#            for key, data in gources.iteritems():
+#                print key, data['process'].poll()
 
 
 def play_sound():
@@ -236,7 +277,7 @@ def fetch_gravatars(path, lines):
             except urllib2.HTTPError, e:
                 logging.debug(e)
         else:
-            logging.debug('File already exists :\\')
+            logging.debug('File exists for for "%s" %s...' % (author, email))
 
         authors.remove(line)
 
@@ -264,45 +305,22 @@ def download_gravatars(path):
 
 def main(argv):
     pid = os.getpid()
-    try:
-        while True:
-            # EVENT LOOP!!!
-            events = retrieve_last_pushes()
-            events_to_show = OrderedDict([k, events[k]] for k in events.keys()[-1 * DISPLAY_COUNT:])  # if we received more than we can show, ignore the oldest
-            remaining_events = OrderedDict([k, events[k]] for k in events.keys()[:-1 * DISPLAY_COUNT])
 
-            # Now which gources do we keep and which do we replace?
-            old_gources = [id for id in gources if id not in events_to_show]
-            assert len(old_gources) <= [len(set(events_to_show.keys()) - set(gources.keys()))]
+    if not OH_SO_PRETTY:
+        try:
+            while True:
+                # EVENT LOOP!!!
+                generate_gources()
+                sleep(REFRESH_RATE)
 
-            for key, newrev in events_to_show.iteritems():
-                try:
-                    if key in gources:
-                        logging.debug('Updating gource %s: -> %s' % (key, newrev))
-                        update_gource(key, newrev)
-                    elif old_gources:
-                        oldest = old_gources.pop(0)
-                        logging.debug('Replacing gource %s with %s' % (oldest, key))
-                        create_gource(key, newrev, in_place_of=oldest)
-                    else:
-                        logging.debug('Adding gource %s' % key)
-                        create_gource(key, newrev)
-                except RepoGoneError:
-                    if remaining_events:
-                        k, v = remaining_events.popitem(last=True)
-                        events_to_show[k] = v
-                    else:
-                        logging.warn('No remaining events to show.')
+        finally:
+            if pid == os.getpid():
+                for gource in gources.values():
+                    gource['process'].terminate()
+    else:
+        logging.debug('I\'m so pretty. Oh so pretty.')
+        generate_gources()
 
-#            for key, data in gources.iteritems():
-#                print key, data['process'].poll()
-
-            sleep(REFRESH_RATE)
-
-    finally:
-        if pid == os.getpid():
-            for gource in gources.values():
-                gource['process'].terminate()
 
 if __name__ == '__main__':
     log = logging.getLogger()
