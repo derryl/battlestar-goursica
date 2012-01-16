@@ -101,7 +101,6 @@ def retrieve_last_pushes():
 
     last_events = OrderedDict()
     for event in events:
-        # Key looks like ff0000/project/some/branch/name (removes refs/heads)
         key = '/'.join([event['repo']['name'], re.sub('^refs/heads/', '', event['payload']['ref'])])
         if key in last_events:
             del last_events[key]  # make sure to track the most recent one only
@@ -131,7 +130,6 @@ def update_repo(key):
     try:
         if not os.path.exists(path_for_key(key)):
             logging.debug('Cloning repo %s' % repo)
-            # check_output(['git', 'clone', '-b', ref, '--depth', '1', 'git@github.com:%s.git' % repo, path_for_key(key)])
             check_output(['git', 'clone', '-b', ref, 'git@github.com:%s.git' % repo, path_for_key(key)])
             os.chdir(path_for_key(key))
         else:
@@ -223,9 +221,6 @@ def generate_gources():
                 events_to_show[k] = v
             else:
                 logging.warn('No remaining events to show.')
-
-#            for key, data in gources.iteritems():
-#                print key, data['process'].poll()
 
 
 def play_sound():
