@@ -2,3 +2,4 @@
 #    NOTE: to avoid conflicts, every requirement should include the version
 
 python-dateutil   == 1.5
+clint             == 0.3
