@@ -1,22 +1,28 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
-# run pip install -r requirements.txt
+from __future__ import print_function
 
-# Linux requirements:
-# apt-get install sox
-# apt-get install python-tk
+import os
+import sys
+import json
+import platform
+
+sys.path.insert(0, os.path.abspath('..'))
+
+from clint import resources
+from clint import args
+from clint.textui import puts, colored, indent
 
 from collections import OrderedDict
 from datetime import datetime
 from dateutil.parser import parse as dateparse
 from json import loads
-from subprocess import CalledProcessError, Popen, PIPE, check_output, check_call, \
-    call
+from subprocess import CalledProcessError, Popen, PIPE, check_output, check_call, call
 from time import sleep
 import Tkinter
 import base64
 import inspect
-import json
 import logging
 import os
 import re
@@ -24,62 +30,49 @@ import sys
 import md5
 import urllib2
 
-# Set current directory
-CURRENT_DIR = os.path.dirname(inspect.getfile(inspect.currentframe()))
-
-# Get screen resolution
 t = Tkinter.Tk()
-SCREEN_WIDTH = t.winfo_screenwidth()
-SCREEN_HEIGHT = t.winfo_screenheight()
 
-# Battlestar Goursica config
-BSG_CONFIG = json.load(open(os.path.abspath('%s/bsgconfig.json' % CURRENT_DIR), 'r'))
-ORGANIZATION = BSG_CONFIG.get('org')
-USERNAME = BSG_CONFIG.get('user')
-PASSWORD = BSG_CONFIG.get('pass')
-ACTIVITY = BSG_CONFIG.get('activity')
+# Set current directory
+CONFIG_URL = 'config.json'
+CURRENT_DIR = os.path.dirname(inspect.getfile(inspect.currentframe()))
+UTILS = {
+    'required': ['git', 'gource'],
+    'optional': {
+        'darwin': [{
+            'call': 'afplay'
+        }],
+        'linux': [{
+            'call': 'play',
+            'req': 'apt-get install sox'
+        }, {
+            'call': 'xdotool',
+            'req': 'apt-get install xdotool'
+        }]
+    }
+}
 
-# Gource config
-GOURCE_OPTS = ['gource', '--load-config', os.path.abspath('%s/gourceconfig.ini' % CURRENT_DIR)]
+DEFAULTS = {
+    'rows': 3,
+    'columns': 2,
+    'refresh_rate': 10,
+    'gravatar_size': 90,
+    'git_log_limit': 100,
+    'api_url': 'https://api.github.com',
+    'screen_width': t.winfo_screenwidth(),
+    'screen_height': t.winfo_screenheight(),
+    'repo_store': os.path.abspath('%s/repositories' % CURRENT_DIR),
+    'gource_options': ['gource', '--load-config', os.path.abspath('%s/gourceconfig.ini' % CURRENT_DIR)],
+    'git_log_options': ['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames'],
+    'sound_file': os.path.abspath('%s/happykids.wav' % CURRENT_DIR)
+}
 
-# Gravatar
-GRAVATAR_SIZE = 90
+DEFAULTS.update({
+    'max_gources': DEFAULTS.get('rows') * DEFAULTS.get('columns')
+})
 
-# Sound
-SOUND_FILE = os.path.abspath('%s/happykids.wav' % CURRENT_DIR)
+OPTS = dict()
 
-# Git log settings
-GIT_LOG_LIMIT = 100
-GIT_LOG_OPTS = ['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames']
-if GIT_LOG_LIMIT:
-    GIT_LOG_OPTS.extend(['-n', '%s' % GIT_LOG_LIMIT])
-
-# Global settings
-ROWS = 3
-COLUMNS = 2
-DISPLAY_COUNT = ROWS * COLUMNS
-REPO_STORE = os.path.abspath('%s/repositories' % CURRENT_DIR)
-REFRESH_RATE = 10  # seconds!
-OH_SO_PRETTY = False
-
-if USERNAME and PASSWORD:
-    HEADERS = {'Authorization': 'Basic %s' % base64.encodestring('%s:%s' % (USERNAME, PASSWORD))}
-else:
-    HEADERS = {}
-
-if ORGANIZATION:
-    if USERNAME and PASSWORD and ACTIVITY == 'all':
-        GITHUB_API = 'https://api.github.com/users/%s/events/orgs/%s' % (USERNAME, ORGANIZATION)
-    else:
-        GITHUB_API = 'https://api.github.com/orgs/%s/events' % (ORGANIZATION)
-elif USERNAME:
-    GITHUB_API = 'https://api.github.com/users/%s/events' % USERNAME
-
-if not os.path.exists(REPO_STORE):
-    os.makedirs(REPO_STORE)
-
-gources = OrderedDict()  # In order of creation time, not screen position
-last_update = datetime.min.isoformat() + 'Z'
+resources.init('ff0000', 'Battlestar Goursica')
 
 
 class RepoGoneError(Exception):
@@ -88,12 +81,13 @@ class RepoGoneError(Exception):
 
 def retrieve_last_pushes():
     ''' Returns an OrderedDict (in chronological order) of key, revision for all recent pushes since last check. '''
-    global last_update
+    # global OPTS
+    last_update = OPTS.get('last_update')
 
-    req = urllib2.Request(GITHUB_API,
-                          headers=HEADERS)
+    req = urllib2.Request(OPTS.get('github_api'),
+                          headers=OPTS.get('headers'))
     events = loads(urllib2.urlopen(req).read())
-    events = [e for e in events if e['type'] == u'PushEvent' and (ACTIVITY == 'all' or e['public']) and dateparse(e['created_at']) > dateparse(last_update)]
+    events = [e for e in events if e['type'] == u'PushEvent' and (OPTS.get('activity') == 'all' or e['public']) and dateparse(e['created_at']) > dateparse(last_update)]
     events.reverse()  # chrono order
 
     if not events:
@@ -108,12 +102,13 @@ def retrieve_last_pushes():
 
     if events:
         last_update = events[-1]['created_at']
+        OPTS['last_update'] = last_update
 
     return last_events
 
 
 def path_for_key(key):
-    return os.path.join(REPO_STORE, re.sub(r'[/.\\]', '_', key))
+    return os.path.join(OPTS.get('repo_store'), re.sub(r'[/.\\]', '_', key))
 
 
 def clean_title(key):
@@ -121,7 +116,7 @@ def clean_title(key):
 
 
 def calculate_viewport():
-    return '%sx%s' % ((SCREEN_WIDTH // COLUMNS) - COLUMNS, (SCREEN_HEIGHT // ROWS) - ROWS)
+    return '%sx%s' % ((OPTS.get('screen_width') // OPTS.get('columns')) - OPTS.get('columns'), (OPTS.get('screen_height') // OPTS.get('rows')) - OPTS.get('rows'))
 
 
 def update_repo(key):
@@ -137,7 +132,7 @@ def update_repo(key):
             logging.debug('Updating repo for %s' % key)
             check_output(['git', 'pull', 'origin', '%s' % ref])
     except CalledProcessError:
-        logging.warn('Looks like we got an error from a called git process.  Assuming repo is gone.')
+        logging.debug('Looks like we got an error from a called git process.  Assuming repo is gone.')
         raise RepoGoneError
 
     # Gravatar regardless of condition
@@ -153,59 +148,59 @@ def create_gource(key, newrev, in_place_of=None, position=None):
         position = remove_gource(in_place_of)
     os.chdir(path_for_key(key))
 
-    log = check_output(GIT_LOG_OPTS)
-    gource_opts = GOURCE_OPTS + ['--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--viewport', calculate_viewport(),  '--title', clean_title(key)]
+    log = check_output(OPTS.get('git_log_options'))
+    gource_opts = OPTS.get('gource_options') + ['--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--viewport', calculate_viewport(),  '--title', clean_title(key)]
 
-    if not OH_SO_PRETTY:
+    if not OPTS.get('pretty'):
         gource_opts.append('-')
     else:
         gource_opts.append('--loop')
 
     gource = Popen(gource_opts, stdin=PIPE)
 
-    if not OH_SO_PRETTY and not os.fork():
+    if not OPTS.get('pretty') and not os.fork():
         gource.stdin.write(log)
         gource.stdin.flush()
         sys.exit()
 
-    gources[key] = {'process': gource, 'position': position, 'lastrev': newrev}
+    OPTS.get('gources')[key] = {'process': gource, 'position': position, 'lastrev': newrev}
 
 
 def update_gource(key, newrev):
     update_repo(key)
     os.chdir(path_for_key(key))
 
-    gource = gources[key]['process']
-    log = check_output(GIT_LOG_OPTS + ['%s..%s' % (gources[key]['lastrev'], newrev)])
+    gource = OPTS.get('gources')[key]['process']
+    log = check_output(OPTS.get('git_log_options') + ['%s..%s' % (OPTS.get('gources')[key]['lastrev'], newrev)])
 
     if not os.fork():
         gource.stdin.write(log)
         gource.stdin.flush()
         sys.exit()
 
-    gources[key]['lastrev'] = newrev
+    OPTS.get('gources')[key]['lastrev'] = newrev
 
 
 def remove_gource(key):
-    gource = gources[key]['process']
-    position = gources[key]['position']
+    gource = OPTS.get('gources')[key]['process']
+    position = OPTS.get('gources')[key]['position']
     gource.terminate()
-    del gources[key]
+    del OPTS.get('gources')[key]
     return position
 
 
 def generate_gources():
     events = retrieve_last_pushes()
-    events_to_show = OrderedDict([k, events[k]] for k in events.keys()[-1 * DISPLAY_COUNT:])  # if we received more than we can show, ignore the oldest
-    remaining_events = OrderedDict([k, events[k]] for k in events.keys()[:-1 * DISPLAY_COUNT])
+    events_to_show = OrderedDict([k, events[k]] for k in events.keys()[-1 * (OPTS.get('max_gources')):])  # if we received more than we can show, ignore the oldest
+    remaining_events = OrderedDict([k, events[k]] for k in events.keys()[:-1 * (OPTS.get('max_gources'))])
 
     # Now which gources do we keep and which do we replace?
-    old_gources = [id for id in gources if id not in events_to_show]
-    assert len(old_gources) <= [len(set(events_to_show.keys()) - set(gources.keys()))]
+    old_gources = [id for id in OPTS.get('gources') if id not in events_to_show]
+    assert len(old_gources) <= [len(set(events_to_show.keys()) - set(OPTS.get('gources').keys()))]
 
     for key, newrev in events_to_show.iteritems():
         try:
-            if key in gources:
+            if key in OPTS.get('gources'):
                 logging.debug('Updating gource %s: -> %s' % (key, newrev))
                 update_gource(key, newrev)
             elif old_gources:
@@ -220,20 +215,19 @@ def generate_gources():
                 k, v = remaining_events.popitem(last=True)
                 events_to_show[k] = v
             else:
-                logging.warn('No remaining events to show.')
+                logging.debug('No remaining events to show.')
 
 
 def play_sound():
     if not os.fork():
         if call('which afplay', shell=True) == 0:
             # OS X
-            check_call(['afplay', SOUND_FILE])
+            check_call(['afplay', OPTS.get('sound_file')])
         elif call('which play', shell=True) == 0:
             # Linux
-            print 'play', SOUND_FILE
-            check_call(['play', SOUND_FILE])
+            check_call(['play', OPTS.get('sound_file')])
         else:
-            logging.warning('No compatible sound program (afplay/play) detected')
+            logging.warn('No compatible sound program (afplay/play) detected')
         sys.exit()
 
 
@@ -254,8 +248,8 @@ def fetch_gravatars(path, lines):
 
         # Download the file if it does not exist
         if not os.path.isfile(author_image_file):
-            gravatar_url = 'http://www.gravatar.com/avatar/%s?d=404&size=%s' % (md5.new(email).hexdigest(), GRAVATAR_SIZE)
-            logging.warn('Fetching image for "%s" %s (%s)...' % (author, email, gravatar_url))
+            gravatar_url = 'http://www.gravatar.com/avatar/%s?d=404&size=%s' % (md5.new(email).hexdigest(), OPTS.get('gravatar_size'))
+            logging.debug('Fetching image for "%s" %s (%s)...' % (author, email, gravatar_url))
 
             try:
                 url = urllib2.urlopen(gravatar_url)
@@ -279,8 +273,8 @@ def fetch_gravatars(path, lines):
 
 def parse_git_authors(path):
     authors = ['git', 'log', '--pretty=format:%ae|%an']
-    if GIT_LOG_LIMIT:
-        authors.extend(['-n', '%s' % GIT_LOG_LIMIT])
+    if OPTS.get('git_log_limit'):
+        authors.extend(['-n', '%s' % OPTS.get('git_log_limit')])
 
     log = check_output(authors)
     lines = log.split('\n')
@@ -298,19 +292,131 @@ def download_gravatars(path):
     parse_git_authors(abspath)
 
 
-def main(argv):
+class RequirementsNotMetError(Exception):
+    pass
+
+
+def check_first_run():
+    return resources.user.read(CONFIG_URL) == None
+
+
+def check_requirements():
+    requirements_met = True
+    required = UTILS['required']
+    optional = UTILS['optional'][platform.system().lower()]
+
+    puts(colored.cyan('Checking requirements...'))
+    with indent(4, quote='>>>'):
+        for util in required:
+            try:
+                check_output('which %s' % util, shell=True).strip()
+                puts(colored.cyan('%s is installed' % util))
+            except Exception:
+                puts(colored.red('ERROR: %s is required but not found.' % util))
+                requirements_met = False
+
+        for util in optional:
+            try:
+                check_output('which %s' % util['call'], shell=True).strip()
+                puts(colored.cyan('%s is installed' % util['call']))
+            except Exception:
+                warning = 'WARNING: %s is recommended but not found.' % util['call']
+                if util['req']:
+                    warning = warning + ' Try \'%s\'' % util['req']
+                puts(colored.yellow(warning))
+                requirements_met = False
+    print
+    return requirements_met
+
+
+def create_config():
+    puts(colored.cyan('Checking requirements...'))
+    with indent(4, quote='>>>'):
+        org = raw_input('GitHub organization (optional): ')
+        puts(colored.magenta(org))
+
+        user = raw_input('GitHub username (optional): ')
+        puts(colored.magenta(user))
+
+        password = raw_input('GitHub password (optional): ')
+        puts(colored.magenta(password))
+
+        activity = raw_input('GitHub activity level (all, private): ')
+        puts(colored.magenta(activity))
+    print
+
+    if (org or user or password) and activity:
+        DEFAULTS.update({
+            'org': org,
+            'user': user,
+            'pass': password,
+            'activity': activity
+        })
+
+        resources.user.write(CONFIG_URL, json.dumps(DEFAULTS))
+
+
+def setup():
+    reqs = check_requirements()
+    if reqs:
+        create_config()
+        main()
+    else:
+        raise RequirementsNotMetError
+
+
+def check_flags():
+    global OPTS
+
+    if ('-p', '--oh-so-pretty') in args.flags:
+        OPTS['pretty'] = True
+
+
+def load_settings():
+    global DEFAULTS, OPTS
+
+    OPTS = DEFAULTS.copy()
+    OPTS.update(json.loads(resources.user.read(CONFIG_URL)))
+
+    check_flags()
+
+    if OPTS.get('user') and OPTS.get('pass'):
+        OPTS['headers'] = {'Authorization': 'Basic %s' % base64.encodestring('%s:%s' % (OPTS.get('user'), OPTS.get('pass')))}
+    else:
+        OPTS['headers'] = {}
+
+    if OPTS.get('org'):
+        if OPTS.get('user') and OPTS.get('pass') and OPTS.get('activity') == 'all':
+            OPTS['github_api'] = '%s/users/%s/events/orgs/%s' % (OPTS.get('api_url'), OPTS.get('user'), OPTS.get('org'))
+        else:
+            OPTS['github_api'] = '%s/orgs/%s/events' % (OPTS.get('api_url'), OPTS.get('org'))
+    elif OPTS.get('user'):
+        OPTS['github_api'] = '%s/users/%s/events' % (OPTS.get('api_url'), OPTS.get('user'))
+
+    if not os.path.exists(OPTS.get('repo_store')):
+        os.makedirs(OPTS.get('repo_store'))
+
+    if OPTS.get('git_log_limit'):
+        OPTS.get('git_log_options').extend(['-n', '%s' % OPTS.get('git_log_limit')])
+
+    OPTS['gources'] = OrderedDict()  # In order of creation time, not screen position
+    OPTS['last_update'] = datetime.min.isoformat() + 'Z'
+
+
+def main():
+    load_settings()
     pid = os.getpid()
 
-    if not OH_SO_PRETTY:
+    if not OPTS.get('pretty'):
         try:
             while True:
                 # EVENT LOOP!!!
                 generate_gources()
-                sleep(REFRESH_RATE)
+                sleep(OPTS.get('refresh_rate'))
 
         finally:
-            if pid == os.getpid():
-                for gource in gources.values():
+            if OPTS.get('gources') and pid == os.getpid():
+                for gource in OPTS.get('gources').values():
                     gource['process'].terminate()
     else:
         logging.debug('I\'m so pretty. Oh so pretty.')
@@ -318,6 +424,10 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    log = logging.getLogger()
-    log.setLevel(logging.DEBUG)
-    main(sys.argv[1:])
+    # log = logging.getLogger()
+    # log.setLevel(logging.DEBUG)
+
+    if check_first_run():
+        setup()
+    else:
+        main()
