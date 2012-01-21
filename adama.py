@@ -28,6 +28,7 @@ import re
 import sys
 import md5
 import urllib2
+import getpass
 
 t = Tkinter.Tk()
 
@@ -404,7 +405,7 @@ def create_config():
     with indent(4, quote='>>>'):
         org = raw_input('GitHub organization (optional): ')
         user = raw_input('GitHub username (optional): ')
-        password = raw_input('GitHub password (optional): ')
+        password = getpass.getpass('GitHub password (optional): ')
 
         activity = raw_input('GitHub activity level (all [default] or public): ')
         if not activity:
