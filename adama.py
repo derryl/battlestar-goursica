@@ -90,6 +90,28 @@ def debugger(msg):
             debugger(colored.red('%s' % e))
 
 
+def initial_xmonad_layout():
+    sleep(1)
+
+    if OPTS.get('xmonad') and OPTS.get('xdotool'):
+        keystrokes = ['alt+m', 'alt+k', 'alt+shift+j', 'alt+shift+j',
+                      'alt+shift+j', 'alt+j', 'alt+j', 'alt+Return']
+
+        while keystrokes:
+            key = keystrokes[0]
+            check_call(['xdotool', 'key', key])
+            keystrokes.remove(key)
+    pass
+
+
+def update_xmonad_layout():
+    sleep(1)
+
+    if OPTS.get('xmonad') and OPTS.get('xdotool'):
+        for x in range(0, 3):
+            call(['xdotool', 'key', 'alt+shift+j'])
+
+
 def retrieve_last_pushes():
     ''' Returns an OrderedDict (in chronological order) of key, revision for all recent pushes since last check. '''
     # global OPTS
@@ -122,8 +144,15 @@ def path_for_key(key):
     return os.path.join(OPTS.get('repo_store'), re.sub(r'[/.\\]', '_', key))
 
 
-def clean_title(key):
-    return key.split('/', 1)[-1].replace('/', ' / ')
+def clean_title(key, mode):
+    key = key.split('/', 1)[-1].replace('/', ' / ')
+
+    if mode == 'dual' and '_clone' in key:
+        key = key.replace('_clone', ' (replay)')
+    else:
+        key = key + ' (realtime)'
+
+    return key
 
 
 def calculate_viewport():
@@ -133,18 +162,20 @@ def calculate_viewport():
 def update_repo(key):
     repo = '/'.join(key.split('/')[:2])
     ref = '/'.join(key.split('/')[2:])
-    try:
-        if not os.path.exists(path_for_key(key)):
-            logging.debug('Cloning repo %s' % repo)
-            check_output(['git', 'clone', '-b', ref, 'git@github.com:%s.git' % repo, path_for_key(key)])
-            os.chdir(path_for_key(key))
-        else:
-            os.chdir(path_for_key(key))
-            logging.debug('Updating repo for %s' % key)
-            check_output(['git', 'pull', 'origin', '%s' % ref])
-    except CalledProcessError:
-        logging.debug('Looks like we got an error from a called git process.  Assuming repo is gone.')
-        raise RepoGoneError
+
+    if not '_clone' in key:
+        try:
+            if not os.path.exists(path_for_key(key)):
+                debugger(colored.cyan('Cloning repo %s' % repo))
+                check_output(['git', 'clone', '-b', ref, 'git@github.com:%s.git' % repo, path_for_key(key)])
+                os.chdir(path_for_key(key))
+            else:
+                os.chdir(path_for_key(key))
+                debugger(colored.cyan('Updating repo for %s' % key))
+                check_output(['git', 'pull', 'origin', '%s' % ref])
+        except CalledProcessError:
+            debugger(colored.red('Looks like we got an error from a called git process.  Assuming repo is gone.'))
+            raise RepoGoneError
 
     # Gravatar regardless of condition
     download_gravatars(path_for_key(key))
@@ -153,23 +184,28 @@ def update_repo(key):
     play_sound()
 
 
-def create_gource(key, newrev, in_place_of=None, position=None):
+def create_gource(key, newrev, in_place_of=None, position=None, mode=None):
     update_repo(key)
+
+    mode = mode if mode else OPTS.get('mode')
+    realkey = key.replace('_clone', '')
+
     if in_place_of:
         position = remove_gource(in_place_of)
-    os.chdir(path_for_key(key))
+
+    os.chdir(path_for_key(realkey))
 
     log = check_output(OPTS.get('git_log_options'))
-    gource_opts = OPTS.get('gource_options') + ['--user-image-dir', '%s/.git/avatar' % path_for_key(key), '--viewport', calculate_viewport(),  '--title', clean_title(key)]
+    gource_opts = OPTS.get('gource_options') + ['--user-image-dir', '%s/.git/avatar' % path_for_key(realkey), '--viewport', calculate_viewport(),  '--title', clean_title(key, mode)]
 
-    if not OPTS.get('pretty'):
-        gource_opts.append('-')
-    else:
+    if mode == 'pretty' or '_clone' in key:
         gource_opts.append('--loop')
+    else:
+        gource_opts.append('-')
 
     gource = Popen(gource_opts, stdin=PIPE)
 
-    if not OPTS.get('pretty') and not os.fork():
+    if mode != 'pretty' and not '_clone' in key and not os.fork():
         gource.stdin.write(log)
         gource.stdin.flush()
         sys.exit()
@@ -201,9 +237,13 @@ def remove_gource(key):
 
 
 def generate_gources():
+    global OPTS
+
     events = retrieve_last_pushes()
-    events_to_show = OrderedDict([k, events[k]] for k in events.keys()[-1 * (OPTS.get('max_gources')):])  # if we received more than we can show, ignore the oldest
-    remaining_events = OrderedDict([k, events[k]] for k in events.keys()[:-1 * (OPTS.get('max_gources'))])
+    mode = OPTS.get('mode')
+    number_of_gources = OPTS.get('max_gources') // (2 if mode == 'dual' else 1)
+    events_to_show = OrderedDict([k, events[k]] for k in events.keys()[-1 * (number_of_gources):])  # if we received more than we can show, ignore the oldest
+    remaining_events = OrderedDict([k, events[k]] for k in events.keys()[:-1 * (number_of_gources)])
 
     # Now which gources do we keep and which do we replace?
     old_gources = [id for id in OPTS.get('gources') if id not in events_to_show]
@@ -218,15 +258,29 @@ def generate_gources():
                 oldest = old_gources.pop(0)
                 debugger(colored.cyan('Replacing gource %s with %s' % (oldest, key)))
                 create_gource(key, newrev, in_place_of=oldest)
+
+                if mode == 'dual':
+                    update_xmonad_layout()
+                    debugger(colored.cyan('Replacing clone of %s with %s' % (oldest + '_clone', key + '_clone')))
+                    create_gource(key + '_clone', newrev, in_place_of=oldest + '_clone')
             else:
                 debugger(colored.cyan('Adding gource %s' % key))
                 create_gource(key, newrev)
+
+                if mode == 'dual':
+                    debugger(colored.cyan('Adding clone of %s' % key + '_clone'))
+                    create_gource(key + '_clone', newrev)
+
         except RepoGoneError:
             if remaining_events:
                 k, v = remaining_events.popitem(last=True)
                 events_to_show[k] = v
             else:
                 debugger(colored.yellow('No remaining events to show.'))
+
+    if not OPTS.get('runonce') and mode == 'dual':
+        initial_xmonad_layout()
+        OPTS['runonce'] = True
 
 
 def play_sound():
@@ -255,9 +309,10 @@ def fetch_gravatars(path, lines):
         line = authors[0]
         email, author = line.split('|')
         author_image_file = '%s/%s.png' % (path, author)
+        author_missing_file = '%s/%s_404.png' % (path, author)
 
         # Download the file if it does not exist
-        if not os.path.isfile(author_image_file):
+        if not os.path.isfile(author_image_file) and not os.path.isfile(author_missing_file):
             gravatar_url = 'http://www.gravatar.com/avatar/%s?d=404&size=%s' % (md5.new(email).hexdigest(), OPTS.get('gravatar_size'))
             debugger(colored.cyan('Fetching Gravatar for "%s"' % (author)))
 
@@ -274,16 +329,21 @@ def fetch_gravatars(path, lines):
                 else:
                     debugger(colored.red('Server returned error code %s' % urlcode))
             except urllib2.HTTPError, e:
-                logging.debug(e)
+                debugger(colored.red('%s' % e))
+                f = open(author_missing_file, 'wb')
+                f.write('%s' % e)
+                f.close()
+        elif not os.path.isfile(author_missing_file):
+            debugger(colored.yellow('Gravatar missing for "%s" %s' % (author, email)))
         else:
             debugger(colored.green('Gravatar exists for "%s" %s' % (author, email)))
 
         authors.remove(line)
 
 
-def parse_git_authors(path):
+def parse_git_authors(path, clone):
     authors = ['git', 'log', '--pretty=format:%ae|%an']
-    if OPTS.get('git_log_limit'):
+    if OPTS.get('git_log_limit') and not clone:
         authors.extend(['-n', '%s' % OPTS.get('git_log_limit')])
 
     log = check_output(authors)
@@ -293,13 +353,14 @@ def parse_git_authors(path):
 
 
 def download_gravatars(path):
-    os.chdir(path)
+    realpath = path.replace('_clone', '')
+    os.chdir(realpath)
     abspath = '%s/.git/avatar' % os.getcwd()
 
     if not os.path.exists(abspath):
         os.makedirs(abspath)
 
-    parse_git_authors(abspath)
+    parse_git_authors(abspath, '_clone' in path)
 
 
 class RequirementsNotMetError(Exception):
@@ -378,8 +439,15 @@ def setup():
 def check_flags():
     global OPTS
 
-    if ('-p', '--oh-so-pretty') in args.flags:
-        OPTS['pretty'] = True
+    if ('-m', '--mode') in args.flags:
+        g = args.grouped
+
+        if g.get('-m'):
+            OPTS['mode'] = g.get('-m').get(0)
+        elif g.get('--mode'):
+            OPTS['mode'] = g.get('--mode').get(0)
+
+        puts(colored.red(OPTS['mode']))
 
 
 def load_settings():
@@ -412,12 +480,15 @@ def load_settings():
     OPTS['gources'] = OrderedDict()  # In order of creation time, not screen position
     OPTS['last_update'] = datetime.min.isoformat() + 'Z'
 
+    OPTS['xmonad'] = check_output('which xmonad', shell=True).strip()
+    OPTS['xdotool'] = check_output('which xdotool', shell=True).strip()
+
 
 def main():
     load_settings()
     pid = os.getpid()
 
-    if not OPTS.get('pretty'):
+    if OPTS.get('mode') != 'pretty':
         try:
             while True:
                 # EVENT LOOP!!!
@@ -434,8 +505,8 @@ def main():
 
 
 if __name__ == '__main__':
-    # log = logging.getLogger()
-    # log.setLevel(logging.DEBUG)
+    log = logging.getLogger()
+    log.setLevel(logging.DEBUG)
 
     if check_first_run():
         setup()
