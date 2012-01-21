@@ -47,6 +47,9 @@ UTILS = {
         }, {
             'call': 'xdotool',
             'req': 'apt-get install xdotool'
+        }, {
+            'call': 'xmonad',
+            'req': 'apt-get install xmonad'
         }]
     }
 }
