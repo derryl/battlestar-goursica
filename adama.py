@@ -479,8 +479,15 @@ def load_settings():
     OPTS['gources'] = OrderedDict()  # In order of creation time, not screen position
     OPTS['last_update'] = datetime.min.isoformat() + 'Z'
 
-    OPTS['xmonad'] = check_output('which xmonad', shell=True).strip()
-    OPTS['xdotool'] = check_output('which xdotool', shell=True).strip()
+    try:
+        OPTS['xmonad'] = check_output('which xmonad', shell=True).strip()
+    except Exception:
+        pass
+
+    try:
+        OPTS['xdotool'] = check_output('which xdotool', shell=True).strip()
+    except Exception:
+        pass
 
 
 def main():
