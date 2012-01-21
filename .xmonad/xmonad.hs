@@ -272,3 +272,4 @@ defaults = defaultConfig {
         logHook            = myLogHook,
         startupHook        = myStartupHook
     } 
+
