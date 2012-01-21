@@ -236,7 +236,7 @@ myLogHook = return ()
 -- per-workspace layout choices.
 --
 -- By default, do nothing.
-myStartupHook = spawn $ "python ~/Sites/battlestar-goursica/adama.py >> ~/battlestar.log 2&>1"
+myStartupHook = spawn $ "python $HOME/Sites/battlestar-goursica/adama.py --mode dual >> $HOME/battlestar.log 2&>1"
  
 ------------------------------------------------------------------------
 -- Now run xmonad with all the defaults we set up.
