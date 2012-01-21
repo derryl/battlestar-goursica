@@ -260,9 +260,9 @@ def generate_gources():
                 create_gource(key, newrev, in_place_of=oldest)
 
                 if mode == 'dual':
-                    update_xmonad_layout()
                     debugger(colored.cyan('Replacing clone of %s with %s' % (oldest + '_clone', key + '_clone')))
                     create_gource(key + '_clone', newrev, in_place_of=oldest + '_clone')
+                    update_xmonad_layout()
             else:
                 debugger(colored.cyan('Adding gource %s' % key))
                 create_gource(key, newrev)
