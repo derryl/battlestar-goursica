@@ -420,7 +420,7 @@ def create_config():
             'activity': activity
         })
 
-        resources.user.write(CONFIG_URL, json.dumps(DEFAULTS))
+        resources.user.write(CONFIG_URL, json.dumps(DEFAULTS, sort_keys=True, indent=4))
 
 
 def setup():
