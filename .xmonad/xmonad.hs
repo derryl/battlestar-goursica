@@ -7,7 +7,8 @@
 -- Normally, you'd only override those defaults you care about.
 --
  
-import XMonad
+import XMonad hiding (Tall)
+import XMonad.Layout.HintedTile
 import System.Exit
  
 import qualified XMonad.StackSet as W
@@ -179,19 +180,12 @@ myMouseBindings (XConfig {XMonad.modMask = modMask}) = M.fromList $
 -- The available layouts.  Note that each layout is separated by |||,
 -- which denotes layout choice.
 --
-myLayout = tiled ||| Mirror tiled ||| Full
-  where
-     -- default tiling algorithm partitions the screen into two panes
-     tiled   = Tall nmaster delta ratio
- 
-     -- The default number of windows in the master pane
-     nmaster = 3
- 
-     -- Default proportion of screen occupied by master pane
-     ratio   = 1/2
- 
-     -- Percent of screen to increment by when resizing panes
-     delta   = 3/100
+myLayout = hintedTile Tall ||| hintedTile Wide ||| Full
+    where
+        hintedTile = HintedTile nmaster delta ratio TopLeft
+        nmaster    = 3
+        ratio      = 1/2
+        delta      = 3/100
  
 ------------------------------------------------------------------------
 -- Window rules:
