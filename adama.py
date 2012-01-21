@@ -82,6 +82,14 @@ class RepoGoneError(Exception):
     pass
 
 
+def debugger(msg):
+    if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
+        try:
+            puts(msg)
+        except UnicodeDecodeError, e:
+            debugger(colored.red('%s' % e))
+
+
 def retrieve_last_pushes():
     ''' Returns an OrderedDict (in chronological order) of key, revision for all recent pushes since last check. '''
     # global OPTS
@@ -94,7 +102,7 @@ def retrieve_last_pushes():
     events.reverse()  # chrono order
 
     if not events:
-        logging.debug('No events\n')
+        debugger(colored.magenta('No events\n'))
 
     last_events = OrderedDict()
     for event in events:
@@ -204,21 +212,21 @@ def generate_gources():
     for key, newrev in events_to_show.iteritems():
         try:
             if key in OPTS.get('gources'):
-                logging.debug('Updating gource %s: -> %s' % (key, newrev))
+                debugger(colored.cyan('Updating gource %s: -> %s' % (key, newrev)))
                 update_gource(key, newrev)
             elif old_gources:
                 oldest = old_gources.pop(0)
-                logging.debug('Replacing gource %s with %s' % (oldest, key))
+                debugger(colored.cyan('Replacing gource %s with %s' % (oldest, key)))
                 create_gource(key, newrev, in_place_of=oldest)
             else:
-                logging.debug('Adding gource %s' % key)
+                debugger(colored.cyan('Adding gource %s' % key))
                 create_gource(key, newrev)
         except RepoGoneError:
             if remaining_events:
                 k, v = remaining_events.popitem(last=True)
                 events_to_show[k] = v
             else:
-                logging.debug('No remaining events to show.')
+                debugger(colored.yellow('No remaining events to show.'))
 
 
 def play_sound():
@@ -242,7 +250,6 @@ def filter_authors(authors):
 
 def fetch_gravatars(path, lines):
     authors = filter_authors(lines)
-    logging.debug('Attempting to download %s', authors)
 
     while authors:
         line = authors[0]
@@ -252,24 +259,24 @@ def fetch_gravatars(path, lines):
         # Download the file if it does not exist
         if not os.path.isfile(author_image_file):
             gravatar_url = 'http://www.gravatar.com/avatar/%s?d=404&size=%s' % (md5.new(email).hexdigest(), OPTS.get('gravatar_size'))
-            logging.debug('Fetching image for "%s" %s (%s)...' % (author, email, gravatar_url))
+            debugger(colored.cyan('Fetching Gravatar for "%s"' % (author)))
 
             try:
                 url = urllib2.urlopen(gravatar_url)
                 urlcode = url.getcode()
 
                 if urlcode == 200:
-                    logging.debug('Found new image.')
+                    debugger(colored.green('Found new image.'))
                     f = open(author_image_file, 'wb')
                     f.write(url.read())
                     f.close()
                     url.close()
                 else:
-                    logging.debug('Server returned error code %s' % urlcode)
+                    debugger(colored.red('Server returned error code %s' % urlcode))
             except urllib2.HTTPError, e:
                 logging.debug(e)
         else:
-            logging.debug('File exists for for "%s" %s...' % (author, email))
+            debugger(colored.green('Gravatar exists for "%s" %s' % (author, email)))
 
         authors.remove(line)
 
@@ -308,7 +315,7 @@ def check_requirements():
     required = UTILS['required']
     optional = UTILS['optional'][platform.system().lower()]
 
-    puts(colored.cyan('Checking requirements...'))
+    puts(colored.cyan('Checking requirements'))
     with indent(4, quote='>>>'):
         for util in required:
             try:
@@ -333,7 +340,7 @@ def check_requirements():
 
 
 def create_config():
-    puts(colored.cyan('Checking requirements...'))
+    puts(colored.cyan('Checking requirements'))
     with indent(4, quote='>>>'):
         org = raw_input('GitHub organization (optional): ')
         puts(colored.magenta(org))
@@ -422,7 +429,7 @@ def main():
                 for gource in OPTS.get('gources').values():
                     gource['process'].terminate()
     else:
-        logging.debug('I\'m so pretty. Oh so pretty.')
+        debugger(colored.green('I\'m so pretty. Oh so pretty.'))
         generate_gources()
 
 
