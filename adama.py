@@ -33,7 +33,7 @@ t = Tkinter.Tk()
 
 # Set current directory
 CONFIG_URL = 'config.json'
-CURRENT_DIR = os.path.dirname(inspect.getfile(inspect.currentframe()))
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 UTILS = {
     'required': ['git', 'gource'],
     'optional': {
@@ -63,9 +63,9 @@ DEFAULTS = {
     'screen_width': t.winfo_screenwidth(),
     'screen_height': t.winfo_screenheight(),
     'repo_store': os.path.abspath('%s/repositories' % CURRENT_DIR),
-    'gource_options': ['gource', '--load-config', os.path.abspath('%s/gourceconfig.ini' % CURRENT_DIR)],
+    'gource_options': ['gource', '--load-config', os.path.abspath('%s/config/gourceconfig.ini' % CURRENT_DIR)],
     'git_log_options': ['git', 'log', '--pretty=format:user:%aN%n%ct', '--reverse', '--raw', '--encoding=UTF-8', '--no-renames'],
-    'sound_file': os.path.abspath('%s/happykids.wav' % CURRENT_DIR)
+    'sound_file': os.path.abspath('%s/audio/happykids.wav' % CURRENT_DIR)
 }
 
 DEFAULTS.update({
@@ -375,7 +375,7 @@ def check_requirements():
     required = UTILS['required']
     optional = UTILS['optional'][platform.system().lower()]
 
-    puts(colored.cyan('Checking requirements'))
+    puts(colored.cyan('\nChecking requirements'))
     with indent(4, quote='>>>'):
         for util in required:
             try:
@@ -400,19 +400,15 @@ def check_requirements():
 
 
 def create_config():
-    puts(colored.cyan('Checking requirements'))
+    puts(colored.cyan('\nTime to create a config file. We need some credentials to access the GitHub API.'))
     with indent(4, quote='>>>'):
         org = raw_input('GitHub organization (optional): ')
-        puts(colored.magenta(org))
-
         user = raw_input('GitHub username (optional): ')
-        puts(colored.magenta(user))
-
         password = raw_input('GitHub password (optional): ')
-        puts(colored.magenta(password))
 
-        activity = raw_input('GitHub activity level (all, private): ')
-        puts(colored.magenta(activity))
+        activity = raw_input('GitHub activity level (all [default] or public): ')
+        if not activity:
+            activity = 'all'
     print
 
     if (org or user or password) and activity:
@@ -445,8 +441,6 @@ def check_flags():
             OPTS['mode'] = g.get('-m').get(0)
         elif g.get('--mode'):
             OPTS['mode'] = g.get('--mode').get(0)
-
-        puts(colored.red(OPTS['mode']))
 
 
 def load_settings():
