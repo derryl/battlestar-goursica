@@ -22,7 +22,6 @@ from subprocess import CalledProcessError, Popen, PIPE, check_output, check_call
 from time import sleep
 import Tkinter
 import base64
-import inspect
 import logging
 import os
 import re
