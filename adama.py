@@ -119,11 +119,14 @@ def retrieve_last_pushes():
     # global OPTS
     last_update = OPTS.get('last_update')
 
-    req = urllib2.Request(OPTS.get('github_api'),
-                          headers=OPTS.get('headers'))
-    events = loads(urllib2.urlopen(req).read())
-    events = [e for e in events if e['type'] == u'PushEvent' and (OPTS.get('activity') == 'all' or e['public']) and dateparse(e['created_at']) > dateparse(last_update)]
-    events.reverse()  # chrono order
+    try:
+        req = urllib2.Request(OPTS.get('github_api'),
+                              headers=OPTS.get('headers'))
+        events = loads(urllib2.urlopen(req).read())
+        events = [e for e in events if e['type'] == u'PushEvent' and (OPTS.get('activity') == 'all' or e['public']) and dateparse(e['created_at']) > dateparse(last_update)]
+        events.reverse()  # chrono order
+    except urllib2.HTTPError, e:
+        debugger(colored.red('%s' % e))
 
     if not events:
         debugger(colored.magenta('No events\n'))
