@@ -57,6 +57,7 @@ UTILS = {
 DEFAULTS = {
     'rows': 3,
     'columns': 2,
+    'delay': 0.5,
     'refresh_rate': 10,
     'gravatar_size': 90,
     'git_log_limit': 100,
@@ -91,7 +92,7 @@ def debugger(msg):
 
 
 def initial_xmonad_layout():
-    sleep(1)
+    sleep(OPTS['delay'])
 
     if OPTS.get('xmonad') and OPTS.get('xdotool'):
         keystrokes = ['alt+m', 'alt+k', 'alt+shift+j', 'alt+shift+j',
@@ -105,7 +106,7 @@ def initial_xmonad_layout():
 
 
 def update_xmonad_layout():
-    sleep(1)
+    sleep(OPTS['delay'])
 
     if OPTS.get('xmonad') and OPTS.get('xdotool'):
         for x in range(0, 3):
@@ -260,6 +261,7 @@ def generate_gources():
                 create_gource(key, newrev, in_place_of=oldest)
 
                 if mode == 'dual':
+                    sleep(OPTS['delay'])
                     debugger(colored.cyan('Replacing clone of %s with %s' % (oldest + '_clone', key + '_clone')))
                     create_gource(key + '_clone', newrev, in_place_of=oldest + '_clone')
                     update_xmonad_layout()
@@ -268,6 +270,7 @@ def generate_gources():
                 create_gource(key, newrev)
 
                 if mode == 'dual':
+                    sleep(OPTS['delay'])
                     debugger(colored.cyan('Adding clone of %s' % key + '_clone'))
                     create_gource(key + '_clone', newrev)
 
