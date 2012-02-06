@@ -109,6 +109,7 @@ def update_xmonad_layout():
     sleep(OPTS['delay'])
 
     if OPTS.get('xmonad') and OPTS.get('xdotool'):
+        check_call(['xdotool', 'key', 'alt+m'])
         for x in range(0, 3):
             call(['xdotool', 'key', 'alt+shift+j'])
 
