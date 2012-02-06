@@ -1,8 +1,8 @@
 # ignore repositories
-bsgconfig.json
 repositories
 .xmonad/.xmonad.hs.swp
 .xmonad/xmonad-i386-linux
+.xmonad/xmonad-i386-darwin
 .xmonad/xmonad.errors
 .xmonad/xmonad.hi
 .xmonad/xmonad.o

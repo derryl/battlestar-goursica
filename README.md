@@ -16,7 +16,7 @@ Usage
 
 	git clone git@github.com:ff0000/battlestar-goursica.git
 	cd battlestar-goursica
-	pip install -r requirements.txt
+	pip install -r config/requirements.txt
 	python adama.py
 
 Follow the instructions on first-run to set your default credentials.
@@ -48,7 +48,7 @@ Server Setup
 	- `git clone git@github.com:doctyper/battlestar-goursica.git`
 - Install BSG requirements:
 	- `cd battlestar-goursica`
-	- `sudo pip install -r requirements.txt`
+	- `sudo pip install -r config/requirements.txt`
 - All set! Run Battlestar Goursica:
 	- `./adama.py`
 
@@ -74,4 +74,4 @@ If, like us, you're using a screen susceptible to screen burn in, you can run th
 
 Add this to your crontab:
 
-	*/5 * * * * /path/to/battlestar-goursica/cycle.py 2> /path/to/battlestar.log
+	*/5 * * * * /path/to/battlestar-goursica/config/cycle.py 2> /path/to/battlestar.log
