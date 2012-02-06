@@ -264,6 +264,7 @@ def generate_gources():
                     sleep(OPTS['delay'])
                     debugger(colored.cyan('Replacing clone of %s with %s' % (oldest + '_clone', key + '_clone')))
                     create_gource(key + '_clone', newrev, in_place_of=oldest + '_clone')
+                    debugger(colored.red("Run xmonad layout update"))
                     update_xmonad_layout()
             else:
                 debugger(colored.cyan('Adding gource %s' % key))
@@ -282,6 +283,7 @@ def generate_gources():
                 debugger(colored.yellow('No remaining events to show.'))
 
     if not OPTS.get('runonce') and mode == 'dual':
+        debugger(colored.red("Run initial xmonad layout"))
         initial_xmonad_layout()
         OPTS['runonce'] = True
 
